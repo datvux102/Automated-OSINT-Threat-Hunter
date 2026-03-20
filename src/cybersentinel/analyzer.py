@@ -79,7 +79,7 @@ class ThreatAnalyzer:
         text = threat_input.raw_text.strip()
         normalized = text.lower()
 
-        if any(term in normalized for term in LOW_SIGNAL_TERMS):
+        if any(term in normalized for term in LOW_SIGNAL_TERMS) and not self._has_critical_indicator(normalized):
             return ThreatVerdict(
                 is_threat=False,
                 threat_type="Benign_Example",
@@ -106,6 +106,13 @@ class ThreatAnalyzer:
             severity="LOW",
             summary="No high-confidence leak indicators were found.",
         )
+
+    @staticmethod
+    def _has_critical_indicator(normalized_text: str) -> bool:
+        for pattern, (_, severity) in HIGH_SIGNAL_PATTERNS.items():
+            if severity == "CRITICAL" and pattern.lower() in normalized_text:
+                return True
+        return False
 
     @staticmethod
     def _split_segments(text: str) -> list[str]:
