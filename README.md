@@ -105,6 +105,26 @@ $env:CYBERSENTINEL_DEFAULT_QUERY="acme password"
 
 If `CYBERSENTINEL_DEFAULT_QUERY` is empty, the scheduled handler returns a `400` response instead of running a meaningless collection job.
 
+## Deployment
+
+For local SAM deployment, use [deploy.ps1](C:/Users/Gia%20Bao/Documents/D%E1%BB%B1%20%C3%A1n%20c%C3%A1%20nh%C3%A2n/Automated%20OSINT%20Threat%20Hunter/scripts/deploy.ps1):
+
+```powershell
+.\scripts\deploy.ps1 `
+  -StackName CyberSentinelAI `
+  -S3Bucket your-sam-artifacts-bucket `
+  -Region us-east-1 `
+  -DefaultQuery "acme password" `
+  -BedrockModelId "anthropic.claude-3-haiku-20240307-v1:0"
+```
+
+This script requires the AWS SAM CLI and valid AWS credentials in your shell.
+
+For GitHub-based manual deploys, use [.github/workflows/deploy.yml](C:/Users/Gia%20Bao/Documents/D%E1%BB%B1%20%C3%A1n%20c%C3%A1%20nh%C3%A2n/Automated%20OSINT%20Threat%20Hunter/.github/workflows/deploy.yml). It expects repository secrets:
+
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+
 ## Bedrock Configuration
 
 Set these environment variables to enable live model classification:
@@ -157,4 +177,4 @@ GitHub Actions CI is defined in [.github/workflows/ci.yml](C:/Users/Gia%20Bao/Do
 
 - harden the Bedrock response parsing and model-specific request handling
 - add pagination, rate-limit handling, and source-specific normalization to the collector
-- add packaging and deployment commands for SAM environments
+- add least-privilege IAM policies and secrets management for production deployment

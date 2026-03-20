@@ -2,6 +2,32 @@ AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: CyberSentinel AI MVP scaffold
 
+Parameters:
+  AlertThreshold:
+    Type: String
+    Default: CRITICAL
+  SystemPromptPath:
+    Type: String
+    Default: prompts/system_prompt.txt
+  BedrockModelId:
+    Type: String
+    Default: ""
+  SnsTopicArn:
+    Type: String
+    Default: ""
+  DefaultSource:
+    Type: String
+    Default: github
+  DefaultQuery:
+    Type: String
+    Default: ""
+  GitHubApiUrl:
+    Type: String
+    Default: https://api.github.com
+  GitHubApiVersion:
+    Type: String
+    Default: 2022-11-28
+
 Resources:
   ThreatAnalysisFunction:
     Type: AWS::Serverless::Function
@@ -13,14 +39,14 @@ Resources:
       Timeout: 30
       Environment:
         Variables:
-          CYBERSENTINEL_ALERT_THRESHOLD: CRITICAL
-          CYBERSENTINEL_SYSTEM_PROMPT_PATH: prompts/system_prompt.txt
-          CYBERSENTINEL_BEDROCK_MODEL_ID: ""
-          CYBERSENTINEL_SNS_TOPIC_ARN: ""
-          CYBERSENTINEL_DEFAULT_SOURCE: github
-          CYBERSENTINEL_DEFAULT_QUERY: ""
-          CYBERSENTINEL_GITHUB_API_URL: https://api.github.com
-          CYBERSENTINEL_GITHUB_API_VERSION: 2022-11-28
+          CYBERSENTINEL_ALERT_THRESHOLD: !Ref AlertThreshold
+          CYBERSENTINEL_SYSTEM_PROMPT_PATH: !Ref SystemPromptPath
+          CYBERSENTINEL_BEDROCK_MODEL_ID: !Ref BedrockModelId
+          CYBERSENTINEL_SNS_TOPIC_ARN: !Ref SnsTopicArn
+          CYBERSENTINEL_DEFAULT_SOURCE: !Ref DefaultSource
+          CYBERSENTINEL_DEFAULT_QUERY: !Ref DefaultQuery
+          CYBERSENTINEL_GITHUB_API_URL: !Ref GitHubApiUrl
+          CYBERSENTINEL_GITHUB_API_VERSION: !Ref GitHubApiVersion
           AWS_REGION: us-east-1
 
   ScheduledCollectionFunction:
@@ -33,14 +59,14 @@ Resources:
       Timeout: 60
       Environment:
         Variables:
-          CYBERSENTINEL_ALERT_THRESHOLD: CRITICAL
-          CYBERSENTINEL_SYSTEM_PROMPT_PATH: prompts/system_prompt.txt
-          CYBERSENTINEL_BEDROCK_MODEL_ID: ""
-          CYBERSENTINEL_SNS_TOPIC_ARN: ""
-          CYBERSENTINEL_DEFAULT_SOURCE: github
-          CYBERSENTINEL_DEFAULT_QUERY: ""
-          CYBERSENTINEL_GITHUB_API_URL: https://api.github.com
-          CYBERSENTINEL_GITHUB_API_VERSION: 2022-11-28
+          CYBERSENTINEL_ALERT_THRESHOLD: !Ref AlertThreshold
+          CYBERSENTINEL_SYSTEM_PROMPT_PATH: !Ref SystemPromptPath
+          CYBERSENTINEL_BEDROCK_MODEL_ID: !Ref BedrockModelId
+          CYBERSENTINEL_SNS_TOPIC_ARN: !Ref SnsTopicArn
+          CYBERSENTINEL_DEFAULT_SOURCE: !Ref DefaultSource
+          CYBERSENTINEL_DEFAULT_QUERY: !Ref DefaultQuery
+          CYBERSENTINEL_GITHUB_API_URL: !Ref GitHubApiUrl
+          CYBERSENTINEL_GITHUB_API_VERSION: !Ref GitHubApiVersion
           AWS_REGION: us-east-1
       Events:
         ScheduledRun:
@@ -48,3 +74,9 @@ Resources:
           Properties:
             Schedule: rate(1 hour)
             Enabled: true
+
+Outputs:
+  ThreatAnalysisFunctionName:
+    Value: !Ref ThreatAnalysisFunction
+  ScheduledCollectionFunctionName:
+    Value: !Ref ScheduledCollectionFunction
