@@ -1,0 +1,13 @@
+.pytest_cache/
+.venv/
+__pycache__/
+dist/
+build/
+*.pyc
+*.pyo
+*.pyd
+.coverage
+coverage.xml
+env.json
+~$*.xlsx
+*.m4a
