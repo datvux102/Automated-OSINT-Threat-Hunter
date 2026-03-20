@@ -1,13 +1,20 @@
 import { SeverityBadge } from "./SeverityBadge";
 import type { AnalyzeResponse } from "../types/threat";
+import type { HeuristicSignals } from "../utils/heuristicSignals";
 
 interface VerdictCardProps {
   response: AnalyzeResponse | null;
   loading: boolean;
   error: string | null;
+  heuristicSignals?: HeuristicSignals | null;
 }
 
-export function VerdictCard({ response, loading, error }: VerdictCardProps) {
+export function VerdictCard({
+  response,
+  loading,
+  error,
+  heuristicSignals,
+}: VerdictCardProps) {
   if (loading) {
     return (
       <section className="rounded-[28px] border border-slate-200 bg-white/80 p-6 shadow-glow">
@@ -98,6 +105,72 @@ export function VerdictCard({ response, loading, error }: VerdictCardProps) {
         </p>
         <p className="mt-3 text-sm leading-7">{verdict.summary}</p>
       </div>
+
+      {heuristicSignals ? (
+        <div className="mt-4 rounded-3xl bg-white/80 p-5 ring-1 ring-slate-200">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-600">
+                Matched signals (heuristic)
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                Local keyword triage; Bedrock can override the final verdict.
+              </p>
+            </div>
+            {heuristicSignals.highSignals.length > 0 ? (
+              <div className="text-xs text-slate-600">
+                {heuristicSignals.highSignals.length} high indicator
+                {heuristicSignals.highSignals.length > 1 ? "s" : ""}
+              </div>
+            ) : null}
+          </div>
+
+          {heuristicSignals.lowSignals.length > 0 ? (
+            <div className="mt-4 rounded-3xl bg-amber-50 p-4 ring-1 ring-amber-200">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-800">
+                Low-signal terms matched
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {heuristicSignals.lowSignals.map((term) => (
+                  <span
+                    key={term}
+                    className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900"
+                  >
+                    {term}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {heuristicSignals.highSignals.length > 0 ? (
+            <div className="mt-4">
+              <div className="flex flex-wrap gap-3">
+                {heuristicSignals.highSignals.map((signal) => (
+                  <div
+                    key={signal.pattern}
+                    className="rounded-3xl bg-slate-50 p-4 ring-1 ring-slate-200"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <p className="text-sm font-semibold text-ink">
+                        {signal.threat_type}
+                      </p>
+                      <SeverityBadge severity={signal.severity} />
+                    </div>
+                    <p className="mt-2 text-xs font-mono text-slate-600">
+                      pattern: {signal.pattern}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : heuristicSignals.lowSignals.length === 0 ? (
+            <div className="mt-4 rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
+              No heuristic indicators matched.
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </section>
   );
 }

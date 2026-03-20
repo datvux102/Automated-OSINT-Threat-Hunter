@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AnalyzeForm } from "../components/AnalyzeForm";
 import { AlertsPanel } from "../components/AlertsPanel";
 import { HistoryTable } from "../components/HistoryTable";
@@ -11,6 +11,7 @@ import type {
   HealthResponse,
   HistoryItem,
 } from "../types/threat";
+import { detectHeuristicSignals } from "../utils/heuristicSignals";
 
 const maliciousSample: AnalyzePayload = {
   source: "github",
@@ -42,11 +43,18 @@ export function Dashboard() {
   const [form, setForm] = useState<AnalyzePayload>(maliciousSample);
   const [response, setResponse] = useState<AnalyzeResponse | null>(null);
   const [rawResponse, setRawResponse] = useState<unknown>(null);
+  const [analyzedRawText, setAnalyzedRawText] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [healthError, setHealthError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const canSubmit = form.raw_text.trim().length > 0;
+  const heuristicSignals = useMemo(() => {
+    if (!analyzedRawText) return null;
+    return detectHeuristicSignals(analyzedRawText);
+  }, [analyzedRawText]);
 
   useEffect(() => {
     let cancelled = false;
@@ -81,16 +89,29 @@ export function Dashboard() {
   const loadSample = (type: "malicious" | "benign") => {
     setForm(type === "malicious" ? maliciousSample : benignSample);
     setError(null);
+    setResponse(null);
+    setRawResponse(null);
+    setAnalyzedRawText(null);
   };
 
   const clearForm = () => {
     setForm(emptyForm);
     setError(null);
+    setResponse(null);
+    setRawResponse(null);
+    setAnalyzedRawText(null);
   };
 
   const submit = async () => {
+    if (!canSubmit) {
+      setError("Please paste raw text before analyzing.");
+      return;
+    }
+    setAnalyzedRawText(form.raw_text);
     setLoading(true);
     setError(null);
+    setResponse(null);
+    setRawResponse(null);
 
     try {
       const result = await analyzeThreat(form);
@@ -160,17 +181,27 @@ export function Dashboard() {
           <AnalyzeForm
             form={form}
             loading={loading}
+            canSubmit={canSubmit}
             onChange={updateField}
             onSubmit={submit}
             onLoadSample={loadSample}
             onClear={clearForm}
           />
-          <VerdictCard response={response} loading={loading} error={error} />
+          <VerdictCard
+            response={response}
+            loading={loading}
+            error={error}
+            heuristicSignals={heuristicSignals}
+          />
         </section>
 
         <section className="mt-6 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-          <AlertsPanel alerts={response?.alerts_sent ?? []} />
-          <JsonInspector payload={rawResponse} />
+          <AlertsPanel
+            alerts={response?.alerts_sent ?? []}
+            loading={loading}
+            error={error}
+          />
+          <JsonInspector payload={rawResponse} loading={loading} error={error} />
         </section>
 
         <section className="mt-6">

@@ -3,6 +3,7 @@ import type { AnalyzePayload } from "../types/threat";
 interface AnalyzeFormProps {
   form: AnalyzePayload;
   loading: boolean;
+  canSubmit: boolean;
   onChange: (field: keyof AnalyzePayload, value: string) => void;
   onSubmit: () => void;
   onLoadSample: (type: "malicious" | "benign") => void;
@@ -12,6 +13,7 @@ interface AnalyzeFormProps {
 export function AnalyzeForm({
   form,
   loading,
+  canSubmit,
   onChange,
   onSubmit,
   onLoadSample,
@@ -63,12 +65,15 @@ export function AnalyzeForm({
             className="min-h-44 rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-ink outline-none transition focus:border-rose-400 focus:ring-4 focus:ring-rose-100"
           />
         </label>
+        {!canSubmit && !loading ? (
+          <p className="text-xs text-rose-700">Please paste raw text before analyzing.</p>
+        ) : null}
 
         <div className="flex flex-wrap gap-3">
           <button
             type="button"
             onClick={onSubmit}
-            disabled={loading}
+            disabled={loading || !canSubmit}
             className="rounded-2xl bg-ink px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
           >
             {loading ? "Analyzing..." : "Analyze"}
