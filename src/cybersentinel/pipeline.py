@@ -44,6 +44,8 @@ def build_collector(settings: Settings) -> CollectorClient:
         aws_region=settings.aws_region,
         max_attempts=settings.github_max_attempts,
         backoff_seconds=settings.github_backoff_seconds,
+        per_page=settings.github_per_page,
+        max_pages=settings.github_max_pages,
     )
 
 

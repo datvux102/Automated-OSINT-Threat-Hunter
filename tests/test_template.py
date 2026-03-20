@@ -13,3 +13,5 @@ def test_template_exposes_required_parameters() -> None:
     assert "AWS::SQS::Queue" in content
     assert "AWS::CloudWatch::Alarm" in content
     assert "CYBERSENTINEL_GITHUB_MAX_ATTEMPTS" in content
+    assert "CYBERSENTINEL_GITHUB_PER_PAGE" in content
+    assert "CYBERSENTINEL_GITHUB_MAX_PAGES" in content

@@ -35,6 +35,8 @@ class CollectorClient:
         aws_region: str = "us-east-1",
         max_attempts: int = 3,
         backoff_seconds: float = 1.0,
+        per_page: int = 5,
+        max_pages: int = 1,
         opener: Callable[..., object] | None = None,
         sleeper: Callable[[float], None] | None = None,
         secrets_client: Any | None = None,
@@ -46,6 +48,8 @@ class CollectorClient:
         self.aws_region = aws_region
         self.max_attempts = max_attempts
         self.backoff_seconds = backoff_seconds
+        self.per_page = per_page
+        self.max_pages = max_pages
         self._opener = opener or urlopen
         self._sleeper = sleeper or time.sleep
         self._secrets_client = secrets_client
@@ -65,33 +69,17 @@ class CollectorClient:
         )
 
     def _collect_from_github(self, query: str) -> str:
-        endpoint = (
-            f"{self.github_api_url}/search/code"
-            f"?q={quote(query)}&per_page=5"
-        )
-        payload = self._execute_github_request(endpoint)
-
         snippets: list[str] = []
-        for item in payload.get("items", []):
-            repository = item.get("repository", {}).get("full_name", "unknown")
-            path = item.get("path", "")
-            html_url = item.get("html_url", "")
-            fragments = [
-                fragment.get("fragment", "").strip()
-                for fragment in item.get("text_matches", [])
-                if fragment.get("fragment")
-            ]
-            snippet = "\n".join(part for part in fragments if part)
-            snippets.append(
-                "\n".join(
-                    [
-                        f"repository: {repository}",
-                        f"path: {path}",
-                        f"url: {html_url}",
-                        f"snippet: {snippet}".strip(),
-                    ]
-                ).strip()
+        for page in range(1, self.max_pages + 1):
+            endpoint = (
+                f"{self.github_api_url}/search/code"
+                f"?q={quote(query)}&per_page={self.per_page}&page={page}"
             )
+            payload = self._execute_github_request(endpoint)
+            items = payload.get("items", [])
+            snippets.extend(self._normalize_items(items))
+            if len(items) < self.per_page:
+                break
 
         return "\n\n---\n\n".join(snippets)
 
@@ -174,6 +162,36 @@ class CollectorClient:
             region_name=self.aws_region,
         )
         return self._secrets_client
+
+    @staticmethod
+    def _normalize_items(items: list[dict[str, Any]]) -> list[str]:
+        normalized: list[str] = []
+        for item in items:
+            repository = item.get("repository", {}).get("full_name", "unknown")
+            path = item.get("path", "")
+            html_url = item.get("html_url", "")
+            fragments = [
+                CollectorClient._normalize_fragment(fragment.get("fragment", ""))
+                for fragment in item.get("text_matches", [])
+                if fragment.get("fragment")
+            ]
+            snippet = "\n".join(part for part in fragments if part)
+            normalized.append(
+                "\n".join(
+                    [
+                        f"repository: {repository}",
+                        f"path: {path}",
+                        f"url: {html_url}",
+                        f"snippet:\n{snippet}" if snippet else "snippet:",
+                    ]
+                ).strip()
+            )
+        return normalized
+
+    @staticmethod
+    def _normalize_fragment(fragment: str) -> str:
+        lines = [line.strip() for line in fragment.splitlines()]
+        return "\n".join(line for line in lines if line)
 
     @staticmethod
     def _is_retryable_http_error(error: HTTPError) -> bool:

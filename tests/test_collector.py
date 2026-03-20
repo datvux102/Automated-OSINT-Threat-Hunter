@@ -44,7 +44,8 @@ def test_github_collector_formats_results() -> None:
     assert record.source == "github"
     assert "acme/public-repo" in record.raw_text
     assert "AWS_SECRET_ACCESS_KEY=abcd1234" in record.raw_text
-    assert requests[0].full_url.endswith("/search/code?q=acme%20password&per_page=5")
+    assert "snippet:\nAWS_SECRET_ACCESS_KEY=abcd1234" in record.raw_text
+    assert requests[0].full_url.endswith("/search/code?q=acme%20password&per_page=5&page=1")
     assert requests[0].headers["Authorization"] == "Bearer token123"
 
 
@@ -162,3 +163,62 @@ def test_collector_raises_on_network_failure_after_retries() -> None:
         raise AssertionError("Collector should raise a network failure error.")
 
     assert sleeps == [0.5]
+
+
+def test_collector_paginates_until_short_page() -> None:
+    requests: list[object] = []
+
+    def fake_opener(request: object, timeout: int = 15) -> FakeResponse:
+        requests.append(request)
+        if "page=1" in request.full_url:
+            return FakeResponse(
+                {
+                    "items": [
+                        {
+                            "repository": {"full_name": "acme/repo-one"},
+                            "path": "src/a.py",
+                            "html_url": "https://github.com/acme/repo-one/blob/main/src/a.py",
+                            "text_matches": [{"fragment": "line one\n\nline two"}],
+                        },
+                        {
+                            "repository": {"full_name": "acme/repo-two"},
+                            "path": "src/b.py",
+                            "html_url": "https://github.com/acme/repo-two/blob/main/src/b.py",
+                            "text_matches": [{"fragment": "another line"}],
+                        },
+                    ]
+                }
+            )
+        return FakeResponse(
+            {
+                "items": [
+                    {
+                        "repository": {"full_name": "acme/repo-three"},
+                        "path": "src/c.py",
+                        "html_url": "https://github.com/acme/repo-three/blob/main/src/c.py",
+                        "text_matches": [{"fragment": "final line"}],
+                    }
+                ]
+            }
+        )
+
+    collector = CollectorClient(opener=fake_opener, per_page=2, max_pages=3)
+    record = collector.collect("github", "acme password")
+
+    assert len(requests) == 2
+    assert "acme/repo-one" in record.raw_text
+    assert "acme/repo-three" in record.raw_text
+    assert "line one\nline two" in record.raw_text
+
+
+def test_collector_honors_max_pages_limit() -> None:
+    requests: list[object] = []
+
+    def fake_opener(request: object, timeout: int = 15) -> FakeResponse:
+        requests.append(request)
+        return FakeResponse({"items": [{"repository": {"full_name": "acme/repo"}, "path": "x", "html_url": "u", "text_matches": []}]})
+
+    collector = CollectorClient(opener=fake_opener, per_page=1, max_pages=2)
+    collector.collect("github", "acme password")
+
+    assert len(requests) == 2

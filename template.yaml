@@ -37,6 +37,12 @@ Parameters:
   GitHubBackoffSeconds:
     Type: Number
     Default: 1
+  GitHubPerPage:
+    Type: Number
+    Default: 5
+  GitHubMaxPages:
+    Type: Number
+    Default: 1
   AlarmNotificationTopicArn:
     Type: String
     Default: ""
@@ -100,6 +106,8 @@ Resources:
           CYBERSENTINEL_GITHUB_API_VERSION: !Ref GitHubApiVersion
           CYBERSENTINEL_GITHUB_MAX_ATTEMPTS: !Ref GitHubMaxAttempts
           CYBERSENTINEL_GITHUB_BACKOFF_SECONDS: !Ref GitHubBackoffSeconds
+          CYBERSENTINEL_GITHUB_PER_PAGE: !Ref GitHubPerPage
+          CYBERSENTINEL_GITHUB_MAX_PAGES: !Ref GitHubMaxPages
           AWS_REGION: us-east-1
 
   ScheduledCollectionFunction:
@@ -158,6 +166,8 @@ Resources:
           CYBERSENTINEL_GITHUB_API_VERSION: !Ref GitHubApiVersion
           CYBERSENTINEL_GITHUB_MAX_ATTEMPTS: !Ref GitHubMaxAttempts
           CYBERSENTINEL_GITHUB_BACKOFF_SECONDS: !Ref GitHubBackoffSeconds
+          CYBERSENTINEL_GITHUB_PER_PAGE: !Ref GitHubPerPage
+          CYBERSENTINEL_GITHUB_MAX_PAGES: !Ref GitHubMaxPages
           AWS_REGION: us-east-1
       Events:
         ScheduledRun:

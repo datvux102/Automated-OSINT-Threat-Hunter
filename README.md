@@ -179,6 +179,15 @@ $env:CYBERSENTINEL_GITHUB_BACKOFF_SECONDS="1.0"
 
 The collector retries on transient HTTP failures such as `429`, `503`, and similar upstream errors, and raises clearer errors for rate-limit exhaustion.
 
+Pagination is also configurable:
+
+```powershell
+$env:CYBERSENTINEL_GITHUB_PER_PAGE="5"
+$env:CYBERSENTINEL_GITHUB_MAX_PAGES="3"
+```
+
+Collected GitHub hits are normalized into stable text blocks with repository, path, URL, and cleaned snippet content before analysis.
+
 Optional overrides:
 
 ```powershell
@@ -204,5 +213,5 @@ Runtime logs are now emitted as structured JSON lines from [logging_utils.py](C:
 ## Next Steps
 
 - harden the Bedrock response parsing and model-specific request handling
-- add pagination and source-specific normalization to the collector
 - add richer operational dashboards and alarm coverage for analyzer/notification failures
+- add source-specific normalization for additional collectors beyond GitHub

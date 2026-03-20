@@ -21,6 +21,8 @@ class Settings:
     github_api_version: str = "2022-11-28"
     github_max_attempts: int = 3
     github_backoff_seconds: float = 1.0
+    github_per_page: int = 5
+    github_max_pages: int = 1
     default_source: str = "github"
     default_query: str = ""
 
@@ -43,6 +45,8 @@ class Settings:
             github_backoff_seconds=float(
                 os.getenv("CYBERSENTINEL_GITHUB_BACKOFF_SECONDS", "1.0")
             ),
+            github_per_page=int(os.getenv("CYBERSENTINEL_GITHUB_PER_PAGE", "5")),
+            github_max_pages=int(os.getenv("CYBERSENTINEL_GITHUB_MAX_PAGES", "1")),
             default_source=os.getenv("CYBERSENTINEL_DEFAULT_SOURCE", "github"),
             default_query=os.getenv("CYBERSENTINEL_DEFAULT_QUERY", ""),
         )

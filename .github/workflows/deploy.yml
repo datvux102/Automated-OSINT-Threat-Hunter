@@ -45,6 +45,14 @@ on:
         description: Base GitHub retry backoff in seconds
         required: true
         default: "1"
+      github_per_page:
+        description: GitHub results per page
+        required: true
+        default: "5"
+      github_max_pages:
+        description: GitHub pages to scan per run
+        required: true
+        default: "1"
 
 jobs:
   deploy:
@@ -88,4 +96,6 @@ jobs:
               GitHubTokenSecretArn="${{ inputs.github_token_secret_arn }}" \
               AlarmNotificationTopicArn="${{ inputs.alarm_notification_topic_arn }}" \
               GitHubMaxAttempts="${{ inputs.github_max_attempts }}" \
-              GitHubBackoffSeconds="${{ inputs.github_backoff_seconds }}"
+              GitHubBackoffSeconds="${{ inputs.github_backoff_seconds }}" \
+              GitHubPerPage="${{ inputs.github_per_page }}" \
+              GitHubMaxPages="${{ inputs.github_max_pages }}"

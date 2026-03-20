@@ -17,7 +17,9 @@ param(
     [string]$GitHubApiUrl = "https://api.github.com",
     [string]$GitHubApiVersion = "2022-11-28",
     [int]$GitHubMaxAttempts = 3,
-    [double]$GitHubBackoffSeconds = 1.0
+    [double]$GitHubBackoffSeconds = 1.0,
+    [int]$GitHubPerPage = 5,
+    [int]$GitHubMaxPages = 1
 )
 
 $ErrorActionPreference = "Stop"
@@ -39,6 +41,8 @@ $parameterOverrides = @(
     "GitHubApiVersion=$GitHubApiVersion"
     "GitHubMaxAttempts=$GitHubMaxAttempts"
     "GitHubBackoffSeconds=$GitHubBackoffSeconds"
+    "GitHubPerPage=$GitHubPerPage"
+    "GitHubMaxPages=$GitHubMaxPages"
 )
 
 sam build --template-file template.yaml
