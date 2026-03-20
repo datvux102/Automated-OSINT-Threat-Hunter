@@ -6,7 +6,7 @@ import logging
 from typing import Any
 
 from cybersentinel.config import Settings
-from cybersentinel.models import ThreatInput
+from cybersentinel.models import ThreatInput, ThreatVerdict
 from cybersentinel.pipeline import should_alert
 from cybersentinel.analyzer import ThreatAnalyzer
 from cybersentinel.notifier import AlertNotifier
@@ -31,6 +31,18 @@ def _default_verdict() -> dict[str, str | bool]:
         "threat_type": "Invalid_Request",
         "severity": "LOW",
         "summary": "Request could not be processed.",
+    }
+
+def _verdict_to_dict(verdict: ThreatVerdict | None) -> dict[str, str | bool]:
+    if verdict is None:
+        return _default_verdict()
+    data = verdict.to_dict()
+    # Defensive: keep the frontend contract stable even if upstream changes.
+    return {
+        "is_threat": bool(data.get("is_threat", False)),
+        "threat_type": str(data.get("threat_type", "Unknown")),
+        "severity": str(data.get("severity", "LOW")),
+        "summary": str(data.get("summary", "")),
     }
 
 
@@ -117,31 +129,45 @@ def handler(event: dict, context: object | None = None) -> dict:
         aws_region=settings.aws_region,
     )
 
-    verdict = analyzer.analyze(threat_input)
+    verdict: ThreatVerdict | None = None
+    response_error: dict[str, str] | None = None
+    try:
+        verdict = analyzer.analyze(threat_input)
+    except Exception as exc:
+        response_error = {"code": "analysis_failed", "message": str(exc)}
+        _log("analysis_failed", error=response_error)
+        verdict = ThreatVerdict(
+            is_threat=False,
+            threat_type="Analysis_Error",
+            severity="LOW",
+            summary="Analyzer failed; returned safe fallback verdict.",
+        )
 
     alerts_sent: list[dict[str, str]] = []
-    notifier_error: dict[str, str] | None = None
-    if verdict.is_threat and (verdict.severity == "CRITICAL" or should_alert(verdict.severity, settings.alert_threshold)):
+    if verdict.is_threat and (
+        verdict.severity == "CRITICAL"
+        or should_alert(verdict.severity, settings.alert_threshold)
+    ):
         try:
             notifier.notify(threat_input, verdict)
             alerts_sent = [alert.to_dict() for alert in notifier.sent_alerts]
         except Exception as exc:
-            notifier_error = {"code": "notifier_failed", "message": str(exc)}
-            _log("notifier_failed", error=notifier_error)
+            response_error = {"code": "notifier_failed", "message": str(exc)}
+            _log("notifier_failed", error=response_error)
 
     response_body = {
         "ok": True,
         "input": {"source": threat_input.source, "query": threat_input.query},
-        "verdict": verdict.to_dict(),
+        "verdict": _verdict_to_dict(verdict),
         "alerts_sent": alerts_sent,
-        "error": notifier_error,
+        "error": response_error,
     }
     _log(
         "request_completed",
         source=threat_input.source,
         query=threat_input.query,
-        is_threat=verdict.is_threat,
-        severity=verdict.severity,
+        is_threat=bool(verdict.is_threat),
+        severity=str(verdict.severity),
         alerts_sent=len(alerts_sent),
     )
 

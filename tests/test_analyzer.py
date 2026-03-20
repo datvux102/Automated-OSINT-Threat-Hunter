@@ -44,7 +44,8 @@ class FakeBedrockValidClient:
                                         {
                                             "is_threat": True,
                                             "threat_type": "API_Key_Leak",
-                                            "severity": "critical",
+                                            # Malformed but common LLM severity value; should normalize to CRITICAL.
+                                            "severity": "crit!!!",
                                             "summary": "Model detected a likely key exposure.",
                                         }
                                     )
@@ -112,6 +113,7 @@ def test_invalid_bedrock_json_falls_back_to_heuristic() -> None:
     assert verdict.is_threat is True
     assert verdict.threat_type == "Credential_Leak"
     assert verdict.severity == "HIGH"
+
 
 class FakeBedrockMissingKeysClient:
     def invoke_model(self, **_: object) -> dict[str, FakeBedrockBody]:
