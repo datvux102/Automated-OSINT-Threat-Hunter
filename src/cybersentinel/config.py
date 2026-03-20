@@ -14,6 +14,7 @@ class Settings:
     system_prompt_path: Path = DEFAULT_PROMPT_PATH
     bedrock_model_id: str = ""
     aws_region: str = "us-east-1"
+    sns_topic_arn: str = ""
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -25,4 +26,5 @@ class Settings:
             system_prompt_path=prompt_path,
             bedrock_model_id=os.getenv("CYBERSENTINEL_BEDROCK_MODEL_ID", ""),
             aws_region=os.getenv("AWS_REGION", os.getenv("AWS_DEFAULT_REGION", "us-east-1")),
+            sns_topic_arn=os.getenv("CYBERSENTINEL_SNS_TOPIC_ARN", ""),
         )

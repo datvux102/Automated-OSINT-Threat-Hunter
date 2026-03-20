@@ -16,4 +16,5 @@ Resources:
           CYBERSENTINEL_ALERT_THRESHOLD: CRITICAL
           CYBERSENTINEL_SYSTEM_PROMPT_PATH: prompts/system_prompt.txt
           CYBERSENTINEL_BEDROCK_MODEL_ID: ""
+          CYBERSENTINEL_SNS_TOPIC_ARN: ""
           AWS_REGION: us-east-1

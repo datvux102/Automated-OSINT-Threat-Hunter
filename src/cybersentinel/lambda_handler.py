@@ -41,7 +41,10 @@ def handler(event: dict, context: object | None = None) -> dict:
         bedrock_model_id=settings.bedrock_model_id,
         aws_region=settings.aws_region,
     )
-    notifier = AlertNotifier()
+    notifier = AlertNotifier(
+        sns_topic_arn=settings.sns_topic_arn,
+        aws_region=settings.aws_region,
+    )
 
     verdict = analyzer.analyze(threat_input)
     if verdict.is_threat and _should_alert(verdict.severity, settings.alert_threshold):

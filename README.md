@@ -6,6 +6,15 @@ CyberSentinel AI is an MVP scaffold for an automated OSINT threat hunting pipeli
 - classifying potential leaks with an LLM-compatible analysis step
 - emitting critical alerts through a notifier interface
 
+## Status
+
+This repository is an MVP backend scaffold. It includes:
+
+- a Lambda-style entry point
+- heuristic classification with optional Amazon Bedrock inference
+- in-memory alert recording with optional Amazon SNS publishing
+- local tests that do not require AWS credentials
+
 ## Architecture
 
 1. A collector gathers candidate leak content from an external source.
@@ -47,6 +56,8 @@ pip install -e .[dev]
 pytest
 ```
 
+If `pytest` is not installed yet, `pip install -e .[dev]` is required before running the test suite.
+
 ## Running Locally
 
 The Lambda handler accepts either:
@@ -75,9 +86,20 @@ $env:CYBERSENTINEL_BEDROCK_MODEL_ID="anthropic.claude-3-haiku-20240307-v1:0"
 
 If Bedrock is unavailable, the analyzer falls back to the local heuristic path so local development still works.
 
+## SNS Configuration
+
+Set a topic ARN to publish alerts for findings at or above the configured threshold:
+
+```powershell
+$env:CYBERSENTINEL_SNS_TOPIC_ARN="arn:aws:sns:us-east-1:123456789012:cybersentinel-alerts"
+$env:CYBERSENTINEL_ALERT_THRESHOLD="CRITICAL"
+```
+
+If SNS is unavailable or `boto3` is missing, alerts are still returned in the handler response for local verification.
+
 ## Next Steps
 
 - harden the Bedrock response parsing and model-specific request handling
 - implement a real collector client for approved OSINT sources
-- wire the notifier to Amazon SNS
+- replace the collector stub with one approved OSINT source integration
 - add deployment automation for AWS environments
