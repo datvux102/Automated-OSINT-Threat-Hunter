@@ -23,6 +23,15 @@ LOW_SIGNAL_TERMS = {
     "lorem ipsum",
 }
 
+SEVERITY_ORDER = {
+    "LOW": 1,
+    "MEDIUM": 2,
+    "HIGH": 3,
+    "CRITICAL": 4,
+}
+
+BUNDLE_SEPARATOR = "\n\n---\n\n"
+
 
 class ThreatAnalyzer:
     """Analyzer with optional Bedrock inference and heuristic fallback."""
@@ -42,7 +51,6 @@ class ThreatAnalyzer:
 
     def analyze(self, threat_input: ThreatInput) -> ThreatVerdict:
         text = threat_input.raw_text.strip()
-        normalized = text.lower()
 
         if not text:
             return ThreatVerdict(
@@ -51,6 +59,23 @@ class ThreatAnalyzer:
                 severity="LOW",
                 summary="Input contained no analyzable text.",
             )
+
+        segments = self._split_segments(text)
+        segment_verdicts = [
+            self._analyze_single_text(
+                ThreatInput(
+                    source=threat_input.source,
+                    query=threat_input.query,
+                    raw_text=segment,
+                )
+            )
+            for segment in segments
+        ]
+        return self._aggregate_segment_verdicts(segment_verdicts, len(segments))
+
+    def _analyze_single_text(self, threat_input: ThreatInput) -> ThreatVerdict:
+        text = threat_input.raw_text.strip()
+        normalized = text.lower()
 
         if any(term in normalized for term in LOW_SIGNAL_TERMS):
             return ThreatVerdict(
@@ -78,6 +103,47 @@ class ThreatAnalyzer:
             threat_type="No_Threat_Detected",
             severity="LOW",
             summary="No high-confidence leak indicators were found.",
+        )
+
+    @staticmethod
+    def _split_segments(text: str) -> list[str]:
+        segments = [segment.strip() for segment in text.split(BUNDLE_SEPARATOR)]
+        return [segment for segment in segments if segment]
+
+    @staticmethod
+    def _aggregate_segment_verdicts(
+        verdicts: list[ThreatVerdict],
+        segment_count: int,
+    ) -> ThreatVerdict:
+        if not verdicts:
+            return ThreatVerdict(
+                is_threat=False,
+                threat_type="No_Content",
+                severity="LOW",
+                summary="Input contained no analyzable text.",
+            )
+
+        top_verdict = max(
+            verdicts,
+            key=lambda verdict: (
+                verdict.is_threat,
+                SEVERITY_ORDER.get(verdict.severity, 0),
+            ),
+        )
+        if segment_count <= 1:
+            return top_verdict
+
+        threat_count = sum(1 for verdict in verdicts if verdict.is_threat)
+        summary = (
+            f"Analyzed {segment_count} collected hits; "
+            f"{threat_count} potential threat(s). "
+            f"Top finding: {top_verdict.summary}"
+        )
+        return ThreatVerdict(
+            is_threat=top_verdict.is_threat,
+            threat_type=top_verdict.threat_type,
+            severity=top_verdict.severity,
+            summary=summary,
         )
 
     @staticmethod
@@ -167,27 +233,69 @@ class ThreatAnalyzer:
 
     @staticmethod
     def _parse_bedrock_verdict(payload: dict[str, Any]) -> ThreatVerdict | None:
-        text_fragments: list[str] = []
-        for item in payload.get("content", []):
-            if item.get("type") == "text":
-                text_fragments.append(item.get("text", ""))
-
+        text_fragments = ThreatAnalyzer._extract_bedrock_text_fragments(payload)
         if not text_fragments:
             return None
 
         response_text = "\n".join(text_fragments).strip()
-        json_start = response_text.find("{")
-        json_end = response_text.rfind("}")
-        if json_start == -1 or json_end == -1 or json_end < json_start:
+        json_text = ThreatAnalyzer._extract_json_object(response_text)
+        if json_text is None:
             return None
 
-        data = json.loads(response_text[json_start : json_end + 1])
+        data = json.loads(json_text)
         try:
             return ThreatVerdict(
-                is_threat=bool(data["is_threat"]),
+                is_threat=ThreatAnalyzer._coerce_bool(data["is_threat"]),
                 threat_type=str(data["threat_type"]),
                 severity=str(data["severity"]).upper(),
                 summary=str(data["summary"]),
             )
-        except KeyError:
+        except (KeyError, ValueError):
             return None
+
+    @staticmethod
+    def _extract_bedrock_text_fragments(payload: dict[str, Any]) -> list[str]:
+        text_fragments: list[str] = []
+        for item in payload.get("content", []):
+            if item.get("type") == "text":
+                text_fragments.append(item.get("text", ""))
+        if text_fragments:
+            return text_fragments
+
+        output_text = payload.get("outputText")
+        if isinstance(output_text, str):
+            return [output_text]
+
+        completion = payload.get("completion")
+        if isinstance(completion, str):
+            return [completion]
+
+        return []
+
+    @staticmethod
+    def _extract_json_object(text: str) -> str | None:
+        stripped = text.strip()
+        if stripped.startswith("```"):
+            lines = stripped.splitlines()
+            if len(lines) >= 3 and lines[0].startswith("```") and lines[-1].startswith("```"):
+                stripped = "\n".join(lines[1:-1]).strip()
+                if stripped.lower().startswith("json"):
+                    stripped = stripped[4:].strip()
+
+        json_start = stripped.find("{")
+        json_end = stripped.rfind("}")
+        if json_start == -1 or json_end == -1 or json_end < json_start:
+            return None
+        return stripped[json_start : json_end + 1]
+
+    @staticmethod
+    def _coerce_bool(value: Any) -> bool:
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"true", "yes", "1"}:
+                return True
+            if normalized in {"false", "no", "0"}:
+                return False
+        raise ValueError("Unsupported boolean value.")
