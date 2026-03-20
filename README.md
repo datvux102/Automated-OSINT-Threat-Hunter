@@ -170,6 +170,15 @@ For deployed AWS environments, prefer Secrets Manager instead:
 $env:CYBERSENTINEL_GITHUB_TOKEN_SECRET_ARN="arn:aws:secretsmanager:us-east-1:123456789012:secret:github-token"
 ```
 
+Retry behavior is configurable for transient GitHub failures:
+
+```powershell
+$env:CYBERSENTINEL_GITHUB_MAX_ATTEMPTS="3"
+$env:CYBERSENTINEL_GITHUB_BACKOFF_SECONDS="1.0"
+```
+
+The collector retries on transient HTTP failures such as `429`, `503`, and similar upstream errors, and raises clearer errors for rate-limit exhaustion.
+
 Optional overrides:
 
 ```powershell
@@ -195,5 +204,5 @@ Runtime logs are now emitted as structured JSON lines from [logging_utils.py](C:
 ## Next Steps
 
 - harden the Bedrock response parsing and model-specific request handling
-- add pagination, rate-limit handling, and source-specific normalization to the collector
-- add retries/backoff for GitHub API rate limits and richer operational dashboards
+- add pagination and source-specific normalization to the collector
+- add richer operational dashboards and alarm coverage for analyzer/notification failures

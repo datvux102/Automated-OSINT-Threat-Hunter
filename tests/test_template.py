@@ -12,3 +12,4 @@ def test_template_exposes_required_parameters() -> None:
     assert "secretsmanager:GetSecretValue" in content
     assert "AWS::SQS::Queue" in content
     assert "AWS::CloudWatch::Alarm" in content
+    assert "CYBERSENTINEL_GITHUB_MAX_ATTEMPTS" in content

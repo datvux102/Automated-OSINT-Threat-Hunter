@@ -37,6 +37,14 @@ on:
         description: Optional SNS topic ARN for CloudWatch alarms
         required: false
         default: ""
+      github_max_attempts:
+        description: Max GitHub retry attempts
+        required: true
+        default: "3"
+      github_backoff_seconds:
+        description: Base GitHub retry backoff in seconds
+        required: true
+        default: "1"
 
 jobs:
   deploy:
@@ -78,4 +86,6 @@ jobs:
               BedrockModelId="${{ inputs.bedrock_model_id }}" \
               SnsTopicArn="${{ inputs.sns_topic_arn }}" \
               GitHubTokenSecretArn="${{ inputs.github_token_secret_arn }}" \
-              AlarmNotificationTopicArn="${{ inputs.alarm_notification_topic_arn }}"
+              AlarmNotificationTopicArn="${{ inputs.alarm_notification_topic_arn }}" \
+              GitHubMaxAttempts="${{ inputs.github_max_attempts }}" \
+              GitHubBackoffSeconds="${{ inputs.github_backoff_seconds }}"

@@ -15,7 +15,9 @@ param(
     [string]$DefaultSource = "github",
     [string]$DefaultQuery = "",
     [string]$GitHubApiUrl = "https://api.github.com",
-    [string]$GitHubApiVersion = "2022-11-28"
+    [string]$GitHubApiVersion = "2022-11-28",
+    [int]$GitHubMaxAttempts = 3,
+    [double]$GitHubBackoffSeconds = 1.0
 )
 
 $ErrorActionPreference = "Stop"
@@ -35,6 +37,8 @@ $parameterOverrides = @(
     "DefaultQuery=$DefaultQuery"
     "GitHubApiUrl=$GitHubApiUrl"
     "GitHubApiVersion=$GitHubApiVersion"
+    "GitHubMaxAttempts=$GitHubMaxAttempts"
+    "GitHubBackoffSeconds=$GitHubBackoffSeconds"
 )
 
 sam build --template-file template.yaml

@@ -31,6 +31,12 @@ Parameters:
   GitHubApiVersion:
     Type: String
     Default: 2022-11-28
+  GitHubMaxAttempts:
+    Type: Number
+    Default: 3
+  GitHubBackoffSeconds:
+    Type: Number
+    Default: 1
   AlarmNotificationTopicArn:
     Type: String
     Default: ""
@@ -92,6 +98,8 @@ Resources:
           CYBERSENTINEL_GITHUB_TOKEN_SECRET_ARN: !Ref GitHubTokenSecretArn
           CYBERSENTINEL_GITHUB_API_URL: !Ref GitHubApiUrl
           CYBERSENTINEL_GITHUB_API_VERSION: !Ref GitHubApiVersion
+          CYBERSENTINEL_GITHUB_MAX_ATTEMPTS: !Ref GitHubMaxAttempts
+          CYBERSENTINEL_GITHUB_BACKOFF_SECONDS: !Ref GitHubBackoffSeconds
           AWS_REGION: us-east-1
 
   ScheduledCollectionFunction:
@@ -148,6 +156,8 @@ Resources:
           CYBERSENTINEL_GITHUB_TOKEN_SECRET_ARN: !Ref GitHubTokenSecretArn
           CYBERSENTINEL_GITHUB_API_URL: !Ref GitHubApiUrl
           CYBERSENTINEL_GITHUB_API_VERSION: !Ref GitHubApiVersion
+          CYBERSENTINEL_GITHUB_MAX_ATTEMPTS: !Ref GitHubMaxAttempts
+          CYBERSENTINEL_GITHUB_BACKOFF_SECONDS: !Ref GitHubBackoffSeconds
           AWS_REGION: us-east-1
       Events:
         ScheduledRun:

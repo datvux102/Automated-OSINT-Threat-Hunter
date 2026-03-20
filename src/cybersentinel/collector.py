@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import json
+import time
 from dataclasses import asdict, dataclass
 from typing import Any, Callable
+from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
 
@@ -17,6 +19,10 @@ class CollectedRecord:
         return asdict(self)
 
 
+class CollectorError(RuntimeError):
+    """Collector-level failure for external source access."""
+
+
 class CollectorClient:
     """GitHub code-search collector for public leak hunting workflows."""
 
@@ -27,7 +33,10 @@ class CollectorClient:
         github_api_url: str = "https://api.github.com",
         github_api_version: str = "2022-11-28",
         aws_region: str = "us-east-1",
+        max_attempts: int = 3,
+        backoff_seconds: float = 1.0,
         opener: Callable[..., object] | None = None,
+        sleeper: Callable[[float], None] | None = None,
         secrets_client: Any | None = None,
     ) -> None:
         self.github_token = github_token
@@ -35,7 +44,10 @@ class CollectorClient:
         self.github_api_url = github_api_url.rstrip("/")
         self.github_api_version = github_api_version
         self.aws_region = aws_region
+        self.max_attempts = max_attempts
+        self.backoff_seconds = backoff_seconds
         self._opener = opener or urlopen
+        self._sleeper = sleeper or time.sleep
         self._secrets_client = secrets_client
 
     def collect(self, source: str, query: str) -> CollectedRecord:
@@ -57,13 +69,7 @@ class CollectorClient:
             f"{self.github_api_url}/search/code"
             f"?q={quote(query)}&per_page=5"
         )
-        request = Request(
-            endpoint,
-            headers=self._build_headers(),
-            method="GET",
-        )
-        with self._opener(request, timeout=15) as response:
-            payload = json.loads(response.read().decode("utf-8"))
+        payload = self._execute_github_request(endpoint)
 
         snippets: list[str] = []
         for item in payload.get("items", []):
@@ -88,6 +94,37 @@ class CollectorClient:
             )
 
         return "\n\n---\n\n".join(snippets)
+
+    def _execute_github_request(self, endpoint: str) -> dict[str, Any]:
+        last_error: Exception | None = None
+        for attempt in range(1, self.max_attempts + 1):
+            request = Request(
+                endpoint,
+                headers=self._build_headers(),
+                method="GET",
+            )
+            try:
+                with self._opener(request, timeout=15) as response:
+                    return json.loads(response.read().decode("utf-8"))
+            except HTTPError as exc:
+                last_error = exc
+                if not self._is_retryable_http_error(exc):
+                    raise CollectorError(self._format_http_error(exc)) from exc
+            except URLError as exc:
+                last_error = exc
+            except json.JSONDecodeError as exc:
+                raise CollectorError("GitHub API returned invalid JSON.") from exc
+
+            if attempt < self.max_attempts:
+                self._sleeper(self.backoff_seconds * attempt)
+
+        if isinstance(last_error, HTTPError):
+            raise CollectorError(self._format_http_error(last_error)) from last_error
+        if isinstance(last_error, URLError):
+            raise CollectorError(
+                f"GitHub API request failed after {self.max_attempts} attempts: {last_error.reason}"
+            ) from last_error
+        raise CollectorError("GitHub API request failed for an unknown reason.")
 
     def _build_headers(self) -> dict[str, str]:
         headers = {
@@ -137,3 +174,24 @@ class CollectorClient:
             region_name=self.aws_region,
         )
         return self._secrets_client
+
+    @staticmethod
+    def _is_retryable_http_error(error: HTTPError) -> bool:
+        return error.code in {403, 429, 500, 502, 503, 504}
+
+    @staticmethod
+    def _format_http_error(error: HTTPError) -> str:
+        if error.code in {403, 429}:
+            retry_after = error.headers.get("Retry-After")
+            remaining = error.headers.get("X-RateLimit-Remaining")
+            reset = error.headers.get("X-RateLimit-Reset")
+            details = []
+            if retry_after:
+                details.append(f"retry_after={retry_after}")
+            if remaining is not None:
+                details.append(f"rate_limit_remaining={remaining}")
+            if reset:
+                details.append(f"rate_limit_reset={reset}")
+            suffix = f" ({', '.join(details)})" if details else ""
+            return f"GitHub API rate limit or access restriction encountered{suffix}."
+        return f"GitHub API returned HTTP {error.code}."

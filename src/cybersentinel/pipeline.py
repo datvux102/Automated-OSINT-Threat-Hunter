@@ -42,6 +42,8 @@ def build_collector(settings: Settings) -> CollectorClient:
         github_api_url=settings.github_api_url,
         github_api_version=settings.github_api_version,
         aws_region=settings.aws_region,
+        max_attempts=settings.github_max_attempts,
+        backoff_seconds=settings.github_backoff_seconds,
     )
 
 

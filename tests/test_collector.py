@@ -1,6 +1,7 @@
 import json
+from urllib.error import HTTPError, URLError
 
-from cybersentinel.collector import CollectorClient
+from cybersentinel.collector import CollectorClient, CollectorError
 
 
 class FakeResponse:
@@ -79,3 +80,85 @@ def test_collector_rejects_unknown_sources() -> None:
         assert "Unsupported source" in str(exc)
     else:
         raise AssertionError("Collector should reject unknown sources.")
+
+
+def test_collector_retries_retryable_http_error() -> None:
+    attempts: list[int] = []
+    sleeps: list[float] = []
+
+    def fake_opener(request: object, timeout: int = 15) -> FakeResponse:
+        attempts.append(1)
+        if len(attempts) < 3:
+            raise HTTPError(
+                request.full_url,
+                503,
+                "Service unavailable",
+                hdrs={},
+                fp=None,
+            )
+        return FakeResponse({"items": []})
+
+    collector = CollectorClient(
+        opener=fake_opener,
+        sleeper=lambda seconds: sleeps.append(seconds),
+        max_attempts=3,
+        backoff_seconds=0.25,
+    )
+    record = collector.collect("github", "acme password")
+
+    assert record.raw_text == ""
+    assert len(attempts) == 3
+    assert sleeps == [0.25, 0.5]
+
+
+def test_collector_raises_clear_rate_limit_error() -> None:
+    def fake_opener(request: object, timeout: int = 15) -> FakeResponse:
+        raise HTTPError(
+            request.full_url,
+            403,
+            "Forbidden",
+            hdrs={
+                "Retry-After": "60",
+                "X-RateLimit-Remaining": "0",
+                "X-RateLimit-Reset": "9999999999",
+            },
+            fp=None,
+        )
+
+    collector = CollectorClient(
+        opener=fake_opener,
+        sleeper=lambda seconds: None,
+        max_attempts=1,
+    )
+
+    try:
+        collector.collect("github", "acme password")
+    except CollectorError as exc:
+        message = str(exc)
+        assert "rate limit" in message.lower()
+        assert "retry_after=60" in message
+    else:
+        raise AssertionError("Collector should raise a rate-limit error.")
+
+
+def test_collector_raises_on_network_failure_after_retries() -> None:
+    sleeps: list[float] = []
+
+    def fake_opener(request: object, timeout: int = 15) -> FakeResponse:
+        raise URLError("temporary dns failure")
+
+    collector = CollectorClient(
+        opener=fake_opener,
+        sleeper=lambda seconds: sleeps.append(seconds),
+        max_attempts=2,
+        backoff_seconds=0.5,
+    )
+
+    try:
+        collector.collect("github", "acme password")
+    except CollectorError as exc:
+        assert "temporary dns failure" in str(exc)
+    else:
+        raise AssertionError("Collector should raise a network failure error.")
+
+    assert sleeps == [0.5]
