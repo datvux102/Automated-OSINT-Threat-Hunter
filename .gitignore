@@ -3,6 +3,8 @@
 __pycache__/
 dist/
 build/
+node_modules/
+*.tsbuildinfo
 *.pyc
 *.pyo
 *.pyd
