@@ -94,6 +94,17 @@ python -m cybersentinel.cli --source github --query "acme leak" --raw-text "BEGI
 
 If installed with `pip install -e .`, the console command `cybersentinel` is also available.
 
+## Scheduled AWS Execution
+
+The SAM template now includes a scheduled Lambda entry point in [scheduled_handler.py](C:/Users/Gia%20Bao/Documents/D%E1%BB%B1%20%C3%A1n%20c%C3%A1%20nh%C3%A2n/Automated%20OSINT%20Threat%20Hunter/src/cybersentinel/scheduled_handler.py). It runs `collect -> analyze -> alert` on a timer and reads:
+
+```powershell
+$env:CYBERSENTINEL_DEFAULT_SOURCE="github"
+$env:CYBERSENTINEL_DEFAULT_QUERY="acme password"
+```
+
+If `CYBERSENTINEL_DEFAULT_QUERY` is empty, the scheduled handler returns a `400` response instead of running a meaningless collection job.
+
 ## Bedrock Configuration
 
 Set these environment variables to enable live model classification:
@@ -133,8 +144,17 @@ $env:CYBERSENTINEL_GITHUB_API_VERSION="2022-11-28"
 
 The collector uses GitHub code search and currently keeps only a small number of top matches for downstream classification.
 
+## CI
+
+GitHub Actions CI is defined in [.github/workflows/ci.yml](C:/Users/Gia%20Bao/Documents/D%E1%BB%B1%20%C3%A1n%20c%C3%A1%20nh%C3%A2n/Automated%20OSINT%20Threat%20Hunter/.github/workflows/ci.yml). On pushes to `main` and pull requests, it:
+
+- installs Python 3.11
+- installs the project with dev dependencies
+- runs `pytest`
+- runs `python -m compileall src tests`
+
 ## Next Steps
 
 - harden the Bedrock response parsing and model-specific request handling
 - add pagination, rate-limit handling, and source-specific normalization to the collector
-- add deployment automation and scheduled execution for AWS environments
+- add packaging and deployment commands for SAM environments

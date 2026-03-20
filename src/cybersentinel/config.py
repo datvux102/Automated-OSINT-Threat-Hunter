@@ -18,6 +18,8 @@ class Settings:
     github_token: str = ""
     github_api_url: str = "https://api.github.com"
     github_api_version: str = "2022-11-28"
+    default_source: str = "github"
+    default_query: str = ""
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -33,4 +35,6 @@ class Settings:
             github_token=os.getenv("GITHUB_TOKEN", ""),
             github_api_url=os.getenv("CYBERSENTINEL_GITHUB_API_URL", "https://api.github.com"),
             github_api_version=os.getenv("CYBERSENTINEL_GITHUB_API_VERSION", "2022-11-28"),
+            default_source=os.getenv("CYBERSENTINEL_DEFAULT_SOURCE", "github"),
+            default_query=os.getenv("CYBERSENTINEL_DEFAULT_QUERY", ""),
         )
