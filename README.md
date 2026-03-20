@@ -75,6 +75,29 @@ Example payload:
 }
 ```
 
+## Demo UI
+
+A demo-ready frontend lives in `frontend/` and talks to the existing handler through a tiny local bridge server.
+
+Backend bridge:
+
+```powershell
+python -m cybersentinel.dev_server
+```
+
+Frontend:
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+The Vite app proxies `/api/*` requests to `http://127.0.0.1:8000`, and the backend bridge exposes:
+
+- `GET /api/health`
+- `POST /api/analyze`
+
 ## Bedrock Configuration
 
 Set these environment variables to enable live model classification:
