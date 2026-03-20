@@ -5,9 +5,8 @@ Prefer precision over recall. Treat obviously fake examples, placeholders,
 documentation snippets, and dummy credentials as non-threats unless the text
 contains strong evidence of real exposure.
 
-Return a JSON object with:
+Return ONLY a JSON object with keys:
 - is_threat: boolean
 - threat_type: string
 - severity: LOW, MEDIUM, HIGH, or CRITICAL
 - summary: short explanation
-

@@ -149,3 +149,131 @@ def test_analyzer_aggregates_multi_hit_bundle() -> None:
     assert verdict.threat_type == "Private_Key_Leak"
     assert verdict.severity == "CRITICAL"
     assert "Analyzed 2 collected hits" in verdict.summary
+
+
+class FakeBedrockInvalidSeverityClient:
+    def invoke_model(self, **_: object) -> dict[str, FakeBedrockBody]:
+        return {
+            "body": FakeBedrockBody(
+                json.dumps(
+                    {
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": json.dumps(
+                                    {
+                                        "is_threat": True,
+                                        "threat_type": "API_Key_Leak",
+                                        "severity": "SEVERE",
+                                        "summary": "Invalid severity value.",
+                                    }
+                                ),
+                            }
+                        ]
+                    }
+                )
+            )
+        }
+
+
+class FakeBedrockExtraTextClient:
+    def invoke_model(self, **_: object) -> dict[str, FakeBedrockBody]:
+        return {
+            "body": FakeBedrockBody(
+                json.dumps(
+                    {
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": (
+                                    "Here is the result:\n"
+                                    '{"is_threat": true, "threat_type": "API_Key_Leak", '
+                                    '"severity": "HIGH", "summary": "Suspicious token."}'
+                                ),
+                            }
+                        ]
+                    }
+                )
+            )
+        }
+
+
+class FakeBedrockMissingKeyClient:
+    def invoke_model(self, **_: object) -> dict[str, FakeBedrockBody]:
+        return {
+            "body": FakeBedrockBody(
+                json.dumps(
+                    {
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": json.dumps(
+                                    {
+                                        "is_threat": True,
+                                        "severity": "HIGH",
+                                        "summary": "Missing threat type.",
+                                    }
+                                ),
+                            }
+                        ]
+                    }
+                )
+            )
+        }
+
+
+def test_analyzer_rejects_invalid_bedrock_severity_and_falls_back() -> None:
+    analyzer = ThreatAnalyzer(
+        Path("prompts/system_prompt.txt"),
+        bedrock_model_id="anthropic.test",
+        bedrock_client=FakeBedrockInvalidSeverityClient(),
+    )
+    verdict = analyzer.analyze(
+        ThreatInput(
+            source="github",
+            query="acme key",
+            raw_text="password=supersecret",
+        )
+    )
+
+    assert verdict.is_threat is True
+    assert verdict.threat_type == "Credential_Leak"
+    assert verdict.severity == "HIGH"
+
+
+def test_analyzer_rejects_bedrock_json_with_prefix_text() -> None:
+    analyzer = ThreatAnalyzer(
+        Path("prompts/system_prompt.txt"),
+        bedrock_model_id="anthropic.test",
+        bedrock_client=FakeBedrockExtraTextClient(),
+    )
+    verdict = analyzer.analyze(
+        ThreatInput(
+            source="github",
+            query="acme key",
+            raw_text="password=supersecret",
+        )
+    )
+
+    assert verdict.is_threat is True
+    assert verdict.threat_type == "Credential_Leak"
+    assert verdict.severity == "HIGH"
+
+
+def test_analyzer_rejects_bedrock_json_missing_required_key() -> None:
+    analyzer = ThreatAnalyzer(
+        Path("prompts/system_prompt.txt"),
+        bedrock_model_id="anthropic.test",
+        bedrock_client=FakeBedrockMissingKeyClient(),
+    )
+    verdict = analyzer.analyze(
+        ThreatInput(
+            source="github",
+            query="acme key",
+            raw_text="password=supersecret",
+        )
+    )
+
+    assert verdict.is_threat is True
+    assert verdict.threat_type == "Credential_Leak"
+    assert verdict.severity == "HIGH"

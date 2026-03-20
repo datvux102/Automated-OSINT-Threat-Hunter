@@ -29,6 +29,8 @@ SEVERITY_ORDER = {
     "HIGH": 3,
     "CRITICAL": 4,
 }
+VALID_SEVERITIES = frozenset(SEVERITY_ORDER)
+REQUIRED_BEDROCK_KEYS = frozenset({"is_threat", "threat_type", "severity", "summary"})
 
 BUNDLE_SEPARATOR = "\n\n---\n\n"
 
@@ -242,16 +244,19 @@ class ThreatAnalyzer:
         if json_text is None:
             return None
 
-        data = json.loads(json_text)
         try:
-            return ThreatVerdict(
-                is_threat=ThreatAnalyzer._coerce_bool(data["is_threat"]),
-                threat_type=str(data["threat_type"]),
-                severity=str(data["severity"]).upper(),
-                summary=str(data["summary"]),
-            )
-        except (KeyError, ValueError):
+            data = json.loads(json_text)
+        except json.JSONDecodeError:
             return None
+
+        if not isinstance(data, dict):
+            return None
+
+        try:
+            normalized = ThreatAnalyzer._normalize_bedrock_verdict_dict(data)
+        except ValueError:
+            return None
+        return ThreatVerdict(**normalized)
 
     @staticmethod
     def _extract_bedrock_text_fragments(payload: dict[str, Any]) -> list[str]:
@@ -286,6 +291,11 @@ class ThreatAnalyzer:
         json_end = stripped.rfind("}")
         if json_start == -1 or json_end == -1 or json_end < json_start:
             return None
+
+        prefix = stripped[:json_start].strip()
+        suffix = stripped[json_end + 1 :].strip()
+        if prefix or suffix:
+            return None
         return stripped[json_start : json_end + 1]
 
     @staticmethod
@@ -299,3 +309,30 @@ class ThreatAnalyzer:
             if normalized in {"false", "no", "0"}:
                 return False
         raise ValueError("Unsupported boolean value.")
+
+    @staticmethod
+    def _normalize_bedrock_verdict_dict(data: dict[str, Any]) -> dict[str, Any]:
+        if set(data) != REQUIRED_BEDROCK_KEYS:
+            raise ValueError("Unexpected Bedrock verdict keys.")
+
+        threat_type = data["threat_type"]
+        summary = data["summary"]
+        severity = data["severity"]
+
+        if not isinstance(threat_type, str) or not threat_type.strip():
+            raise ValueError("Invalid threat_type.")
+        if not isinstance(summary, str) or not summary.strip():
+            raise ValueError("Invalid summary.")
+        if not isinstance(severity, str):
+            raise ValueError("Invalid severity.")
+
+        normalized_severity = severity.strip().upper()
+        if normalized_severity not in VALID_SEVERITIES:
+            raise ValueError("Invalid severity.")
+
+        return {
+            "is_threat": ThreatAnalyzer._coerce_bool(data["is_threat"]),
+            "threat_type": threat_type.strip(),
+            "severity": normalized_severity,
+            "summary": summary.strip(),
+        }
