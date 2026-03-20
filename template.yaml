@@ -15,6 +15,10 @@ Parameters:
   SnsTopicArn:
     Type: String
     Default: ""
+  GitHubTokenSecretArn:
+    Type: String
+    Default: ""
+    NoEcho: true
   DefaultSource:
     Type: String
     Default: github
@@ -37,6 +41,25 @@ Resources:
       Runtime: python3.11
       MemorySize: 256
       Timeout: 30
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Statement:
+            - Sid: BedrockInvoke
+              Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+              Resource: !If
+                - HasBedrockModelId
+                - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/${BedrockModelId}
+                - !Ref AWS::NoValue
+            - Sid: SnsPublish
+              Effect: Allow
+              Action:
+                - sns:Publish
+              Resource: !If
+                - HasSnsTopicArn
+                - !Ref SnsTopicArn
+                - !Ref AWS::NoValue
       Environment:
         Variables:
           CYBERSENTINEL_ALERT_THRESHOLD: !Ref AlertThreshold
@@ -45,6 +68,7 @@ Resources:
           CYBERSENTINEL_SNS_TOPIC_ARN: !Ref SnsTopicArn
           CYBERSENTINEL_DEFAULT_SOURCE: !Ref DefaultSource
           CYBERSENTINEL_DEFAULT_QUERY: !Ref DefaultQuery
+          CYBERSENTINEL_GITHUB_TOKEN_SECRET_ARN: !Ref GitHubTokenSecretArn
           CYBERSENTINEL_GITHUB_API_URL: !Ref GitHubApiUrl
           CYBERSENTINEL_GITHUB_API_VERSION: !Ref GitHubApiVersion
           AWS_REGION: us-east-1
@@ -57,6 +81,33 @@ Resources:
       Runtime: python3.11
       MemorySize: 256
       Timeout: 60
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Statement:
+            - Sid: BedrockInvoke
+              Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+              Resource: !If
+                - HasBedrockModelId
+                - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/${BedrockModelId}
+                - !Ref AWS::NoValue
+            - Sid: SnsPublish
+              Effect: Allow
+              Action:
+                - sns:Publish
+              Resource: !If
+                - HasSnsTopicArn
+                - !Ref SnsTopicArn
+                - !Ref AWS::NoValue
+            - Sid: ReadGitHubTokenSecret
+              Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !If
+                - HasGitHubTokenSecretArn
+                - !Ref GitHubTokenSecretArn
+                - !Ref AWS::NoValue
       Environment:
         Variables:
           CYBERSENTINEL_ALERT_THRESHOLD: !Ref AlertThreshold
@@ -65,6 +116,7 @@ Resources:
           CYBERSENTINEL_SNS_TOPIC_ARN: !Ref SnsTopicArn
           CYBERSENTINEL_DEFAULT_SOURCE: !Ref DefaultSource
           CYBERSENTINEL_DEFAULT_QUERY: !Ref DefaultQuery
+          CYBERSENTINEL_GITHUB_TOKEN_SECRET_ARN: !Ref GitHubTokenSecretArn
           CYBERSENTINEL_GITHUB_API_URL: !Ref GitHubApiUrl
           CYBERSENTINEL_GITHUB_API_VERSION: !Ref GitHubApiVersion
           AWS_REGION: us-east-1
@@ -80,3 +132,8 @@ Outputs:
     Value: !Ref ThreatAnalysisFunction
   ScheduledCollectionFunctionName:
     Value: !Ref ScheduledCollectionFunction
+
+Conditions:
+  HasBedrockModelId: !Not [!Equals [!Ref BedrockModelId, ""]]
+  HasSnsTopicArn: !Not [!Equals [!Ref SnsTopicArn, ""]]
+  HasGitHubTokenSecretArn: !Not [!Equals [!Ref GitHubTokenSecretArn, ""]]

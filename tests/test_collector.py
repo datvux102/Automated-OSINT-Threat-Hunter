@@ -47,6 +47,29 @@ def test_github_collector_formats_results() -> None:
     assert requests[0].headers["Authorization"] == "Bearer token123"
 
 
+class FakeSecretsClient:
+    def get_secret_value(self, SecretId: str) -> dict[str, str]:
+        assert SecretId == "arn:aws:secretsmanager:us-east-1:123:secret:github-token"
+        return {"SecretString": '{"token":"secret-token-123"}'}
+
+
+def test_collector_loads_github_token_from_secret() -> None:
+    requests: list[object] = []
+
+    def fake_opener(request: object, timeout: int = 15) -> FakeResponse:
+        requests.append(request)
+        return FakeResponse({"items": []})
+
+    collector = CollectorClient(
+        github_token_secret_arn="arn:aws:secretsmanager:us-east-1:123:secret:github-token",
+        opener=fake_opener,
+        secrets_client=FakeSecretsClient(),
+    )
+    collector.collect("github", "acme password")
+
+    assert requests[0].headers["Authorization"] == "Bearer secret-token-123"
+
+
 def test_collector_rejects_unknown_sources() -> None:
     collector = CollectorClient()
 

@@ -8,3 +8,5 @@ def test_template_exposes_required_parameters() -> None:
     assert "AlertThreshold:" in content
     assert "DefaultQuery:" in content
     assert "ScheduledCollectionFunction:" in content
+    assert "GitHubTokenSecretArn:" in content
+    assert "secretsmanager:GetSecretValue" in content

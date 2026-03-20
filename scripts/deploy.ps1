@@ -10,6 +10,7 @@ param(
     [string]$SystemPromptPath = "prompts/system_prompt.txt",
     [string]$BedrockModelId = "",
     [string]$SnsTopicArn = "",
+    [string]$GitHubTokenSecretArn = "",
     [string]$DefaultSource = "github",
     [string]$DefaultQuery = "",
     [string]$GitHubApiUrl = "https://api.github.com",
@@ -27,6 +28,7 @@ $parameterOverrides = @(
     "SystemPromptPath=$SystemPromptPath"
     "BedrockModelId=$BedrockModelId"
     "SnsTopicArn=$SnsTopicArn"
+    "GitHubTokenSecretArn=$GitHubTokenSecretArn"
     "DefaultSource=$DefaultSource"
     "DefaultQuery=$DefaultQuery"
     "GitHubApiUrl=$GitHubApiUrl"

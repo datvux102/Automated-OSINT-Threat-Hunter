@@ -29,6 +29,10 @@ on:
         description: Optional SNS topic ARN
         required: false
         default: ""
+      github_token_secret_arn:
+        description: Optional Secrets Manager ARN for GitHub token
+        required: false
+        default: ""
 
 jobs:
   deploy:
@@ -68,4 +72,5 @@ jobs:
               DefaultSource="${{ inputs.default_source }}" \
               DefaultQuery="${{ inputs.default_query }}" \
               BedrockModelId="${{ inputs.bedrock_model_id }}" \
-              SnsTopicArn="${{ inputs.sns_topic_arn }}"
+              SnsTopicArn="${{ inputs.sns_topic_arn }}" \
+              GitHubTokenSecretArn="${{ inputs.github_token_secret_arn }}"

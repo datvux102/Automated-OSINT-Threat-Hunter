@@ -37,8 +37,10 @@ def build_notifier(settings: Settings) -> AlertNotifier:
 def build_collector(settings: Settings) -> CollectorClient:
     return CollectorClient(
         github_token=settings.github_token,
+        github_token_secret_arn=settings.github_token_secret_arn,
         github_api_url=settings.github_api_url,
         github_api_version=settings.github_api_version,
+        aws_region=settings.aws_region,
     )
 
 

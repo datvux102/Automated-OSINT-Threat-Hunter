@@ -115,6 +115,7 @@ For local SAM deployment, use [deploy.ps1](C:/Users/Gia%20Bao/Documents/D%E1%BB%
   -S3Bucket your-sam-artifacts-bucket `
   -Region us-east-1 `
   -DefaultQuery "acme password" `
+  -GitHubTokenSecretArn "arn:aws:secretsmanager:us-east-1:123456789012:secret:github-token" `
   -BedrockModelId "anthropic.claude-3-haiku-20240307-v1:0"
 ```
 
@@ -124,6 +125,11 @@ For GitHub-based manual deploys, use [.github/workflows/deploy.yml](C:/Users/Gia
 
 - `AWS_ACCESS_KEY_ID`
 - `AWS_SECRET_ACCESS_KEY`
+
+The deploy path now supports storing the GitHub token in AWS Secrets Manager instead of plain environment variables. Pass the secret ARN as `GitHubTokenSecretArn` and store either:
+
+- a raw token string
+- a JSON object with `token` or `github_token`
 
 ## Bedrock Configuration
 
@@ -155,6 +161,12 @@ For higher rate limits and private access control, set a token before using the 
 $env:GITHUB_TOKEN="ghp_your_token_here"
 ```
 
+For deployed AWS environments, prefer Secrets Manager instead:
+
+```powershell
+$env:CYBERSENTINEL_GITHUB_TOKEN_SECRET_ARN="arn:aws:secretsmanager:us-east-1:123456789012:secret:github-token"
+```
+
 Optional overrides:
 
 ```powershell
@@ -177,4 +189,4 @@ GitHub Actions CI is defined in [.github/workflows/ci.yml](C:/Users/Gia%20Bao/Do
 
 - harden the Bedrock response parsing and model-specific request handling
 - add pagination, rate-limit handling, and source-specific normalization to the collector
-- add least-privilege IAM policies and secrets management for production deployment
+- add dead-letter handling, structured logging, and CloudWatch alarms for production operations

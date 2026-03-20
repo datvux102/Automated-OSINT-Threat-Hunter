@@ -16,6 +16,7 @@ class Settings:
     aws_region: str = "us-east-1"
     sns_topic_arn: str = ""
     github_token: str = ""
+    github_token_secret_arn: str = ""
     github_api_url: str = "https://api.github.com"
     github_api_version: str = "2022-11-28"
     default_source: str = "github"
@@ -33,6 +34,7 @@ class Settings:
             aws_region=os.getenv("AWS_REGION", os.getenv("AWS_DEFAULT_REGION", "us-east-1")),
             sns_topic_arn=os.getenv("CYBERSENTINEL_SNS_TOPIC_ARN", ""),
             github_token=os.getenv("GITHUB_TOKEN", ""),
+            github_token_secret_arn=os.getenv("CYBERSENTINEL_GITHUB_TOKEN_SECRET_ARN", ""),
             github_api_url=os.getenv("CYBERSENTINEL_GITHUB_API_URL", "https://api.github.com"),
             github_api_version=os.getenv("CYBERSENTINEL_GITHUB_API_VERSION", "2022-11-28"),
             default_source=os.getenv("CYBERSENTINEL_DEFAULT_SOURCE", "github"),
