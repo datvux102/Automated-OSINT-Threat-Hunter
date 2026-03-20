@@ -116,6 +116,7 @@ For local SAM deployment, use [deploy.ps1](C:/Users/Gia%20Bao/Documents/D%E1%BB%
   -Region us-east-1 `
   -DefaultQuery "acme password" `
   -GitHubTokenSecretArn "arn:aws:secretsmanager:us-east-1:123456789012:secret:github-token" `
+  -AlarmNotificationTopicArn "arn:aws:sns:us-east-1:123456789012:cybersentinel-alarms" `
   -BedrockModelId "anthropic.claude-3-haiku-20240307-v1:0"
 ```
 
@@ -130,6 +131,8 @@ The deploy path now supports storing the GitHub token in AWS Secrets Manager ins
 
 - a raw token string
 - a JSON object with `token` or `github_token`
+
+The stack now also provisions dead-letter queues for both Lambda functions and CloudWatch alarms for scheduled-job failures and DLQ depth. To receive alarm notifications, pass `AlarmNotificationTopicArn`.
 
 ## Bedrock Configuration
 
@@ -185,8 +188,12 @@ GitHub Actions CI is defined in [.github/workflows/ci.yml](C:/Users/Gia%20Bao/Do
 - runs `pytest`
 - runs `python -m compileall src tests`
 
+## Operations
+
+Runtime logs are now emitted as structured JSON lines from [logging_utils.py](C:/Users/Gia%20Bao/Documents/D%E1%BB%B1%20%C3%A1n%20c%C3%A1%20nh%C3%A2n/Automated%20OSINT%20Threat%20Hunter/src/cybersentinel/logging_utils.py), which makes CloudWatch log filtering simpler for collection and analysis events.
+
 ## Next Steps
 
 - harden the Bedrock response parsing and model-specific request handling
 - add pagination, rate-limit handling, and source-specific normalization to the collector
-- add dead-letter handling, structured logging, and CloudWatch alarms for production operations
+- add retries/backoff for GitHub API rate limits and richer operational dashboards

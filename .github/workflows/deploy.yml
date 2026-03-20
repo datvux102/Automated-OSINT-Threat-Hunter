@@ -33,6 +33,10 @@ on:
         description: Optional Secrets Manager ARN for GitHub token
         required: false
         default: ""
+      alarm_notification_topic_arn:
+        description: Optional SNS topic ARN for CloudWatch alarms
+        required: false
+        default: ""
 
 jobs:
   deploy:
@@ -73,4 +77,5 @@ jobs:
               DefaultQuery="${{ inputs.default_query }}" \
               BedrockModelId="${{ inputs.bedrock_model_id }}" \
               SnsTopicArn="${{ inputs.sns_topic_arn }}" \
-              GitHubTokenSecretArn="${{ inputs.github_token_secret_arn }}"
+              GitHubTokenSecretArn="${{ inputs.github_token_secret_arn }}" \
+              AlarmNotificationTopicArn="${{ inputs.alarm_notification_topic_arn }}"

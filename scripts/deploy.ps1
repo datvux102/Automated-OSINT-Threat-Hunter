@@ -11,6 +11,7 @@ param(
     [string]$BedrockModelId = "",
     [string]$SnsTopicArn = "",
     [string]$GitHubTokenSecretArn = "",
+    [string]$AlarmNotificationTopicArn = "",
     [string]$DefaultSource = "github",
     [string]$DefaultQuery = "",
     [string]$GitHubApiUrl = "https://api.github.com",
@@ -29,6 +30,7 @@ $parameterOverrides = @(
     "BedrockModelId=$BedrockModelId"
     "SnsTopicArn=$SnsTopicArn"
     "GitHubTokenSecretArn=$GitHubTokenSecretArn"
+    "AlarmNotificationTopicArn=$AlarmNotificationTopicArn"
     "DefaultSource=$DefaultSource"
     "DefaultQuery=$DefaultQuery"
     "GitHubApiUrl=$GitHubApiUrl"

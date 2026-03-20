@@ -10,3 +10,5 @@ def test_template_exposes_required_parameters() -> None:
     assert "ScheduledCollectionFunction:" in content
     assert "GitHubTokenSecretArn:" in content
     assert "secretsmanager:GetSecretValue" in content
+    assert "AWS::SQS::Queue" in content
+    assert "AWS::CloudWatch::Alarm" in content

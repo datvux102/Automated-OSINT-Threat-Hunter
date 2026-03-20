@@ -31,8 +31,21 @@ Parameters:
   GitHubApiVersion:
     Type: String
     Default: 2022-11-28
+  AlarmNotificationTopicArn:
+    Type: String
+    Default: ""
 
 Resources:
+  ScheduledCollectionDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      MessageRetentionPeriod: 1209600
+
+  ThreatAnalysisDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      MessageRetentionPeriod: 1209600
+
   ThreatAnalysisFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -41,6 +54,9 @@ Resources:
       Runtime: python3.11
       MemorySize: 256
       Timeout: 30
+      DeadLetterQueue:
+        Type: SQS
+        TargetArn: !GetAtt ThreatAnalysisDLQ.Arn
       Policies:
         - AWSLambdaBasicExecutionRole
         - Statement:
@@ -60,6 +76,11 @@ Resources:
                 - HasSnsTopicArn
                 - !Ref SnsTopicArn
                 - !Ref AWS::NoValue
+            - Sid: SendToThreatDlq
+              Effect: Allow
+              Action:
+                - sqs:SendMessage
+              Resource: !GetAtt ThreatAnalysisDLQ.Arn
       Environment:
         Variables:
           CYBERSENTINEL_ALERT_THRESHOLD: !Ref AlertThreshold
@@ -81,6 +102,9 @@ Resources:
       Runtime: python3.11
       MemorySize: 256
       Timeout: 60
+      DeadLetterQueue:
+        Type: SQS
+        TargetArn: !GetAtt ScheduledCollectionDLQ.Arn
       Policies:
         - AWSLambdaBasicExecutionRole
         - Statement:
@@ -108,6 +132,11 @@ Resources:
                 - HasGitHubTokenSecretArn
                 - !Ref GitHubTokenSecretArn
                 - !Ref AWS::NoValue
+            - Sid: SendToScheduledDlq
+              Effect: Allow
+              Action:
+                - sqs:SendMessage
+              Resource: !GetAtt ScheduledCollectionDLQ.Arn
       Environment:
         Variables:
           CYBERSENTINEL_ALERT_THRESHOLD: !Ref AlertThreshold
@@ -127,13 +156,58 @@ Resources:
             Schedule: rate(1 hour)
             Enabled: true
 
+  ScheduledCollectionErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Scheduled collection Lambda errors detected
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref ScheduledCollectionFunction
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: !If
+        - HasAlarmNotificationTopicArn
+        - [!Ref AlarmNotificationTopicArn]
+        - []
+
+  ScheduledCollectionDlqDepthAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Messages present in scheduled collection DLQ
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfMessagesVisible
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt ScheduledCollectionDLQ.QueueName
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: !If
+        - HasAlarmNotificationTopicArn
+        - [!Ref AlarmNotificationTopicArn]
+        - []
+
 Outputs:
   ThreatAnalysisFunctionName:
     Value: !Ref ThreatAnalysisFunction
   ScheduledCollectionFunctionName:
     Value: !Ref ScheduledCollectionFunction
+  ScheduledCollectionDlqUrl:
+    Value: !Ref ScheduledCollectionDLQ
+  ThreatAnalysisDlqUrl:
+    Value: !Ref ThreatAnalysisDLQ
 
 Conditions:
   HasBedrockModelId: !Not [!Equals [!Ref BedrockModelId, ""]]
   HasSnsTopicArn: !Not [!Equals [!Ref SnsTopicArn, ""]]
   HasGitHubTokenSecretArn: !Not [!Equals [!Ref GitHubTokenSecretArn, ""]]
+  HasAlarmNotificationTopicArn: !Not [!Equals [!Ref AlarmNotificationTopicArn, ""]]
