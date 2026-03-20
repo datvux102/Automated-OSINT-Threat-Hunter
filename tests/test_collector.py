@@ -108,3 +108,24 @@ def test_offline_mode_uses_offline_text_without_network() -> None:
     collector = CollectorClient(opener=fake_opener, offline_mode=True, offline_text="OFFLINE_FIXTURE")
     record = collector.collect("github", "acme")
     assert record.raw_text == "OFFLINE_FIXTURE"
+
+
+def test_malformed_item_shapes_do_not_crash_and_return_normalized_text() -> None:
+    def fake_opener(request: object, timeout: int = 15) -> FakeResponse:
+        return FakeResponse(
+            {
+                "items": [
+                    {
+                        "repository": None,
+                        "path": None,
+                        "html_url": None,
+                        "text_matches": None,
+                    }
+                ]
+            }
+        )
+
+    collector = CollectorClient(opener=fake_opener)
+    record = collector.collect("github", "acme")
+    assert "repository: unknown" in record.raw_text
+    assert "snippet:" in record.raw_text

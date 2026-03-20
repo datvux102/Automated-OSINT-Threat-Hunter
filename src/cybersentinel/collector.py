@@ -65,7 +65,7 @@ class CollectorClient:
         else:
             try:
                 raw_text = self._collect_from_github(query)
-            except CollectorError:
+            except Exception:
                 # Protect the demo: if live collection fails, fall back if configured.
                 raw_text = self._load_offline_text()
 
@@ -107,12 +107,18 @@ class CollectorClient:
         for item in items:
             if not isinstance(item, dict):
                 continue
-            repository = item.get("repository", {}).get("full_name", "unknown")
+            repo_obj = item.get("repository")
+            repository = (
+                repo_obj.get("full_name", "unknown") if isinstance(repo_obj, dict) else "unknown"
+            )
             path = item.get("path", "")
             html_url = item.get("html_url", "")
+            text_matches = item.get("text_matches", [])
+            if not isinstance(text_matches, list):
+                text_matches = []
             fragments = [
                 self._normalize_fragment(fragment.get("fragment", ""))
-                for fragment in item.get("text_matches", [])
+                for fragment in text_matches
                 if isinstance(fragment, dict) and fragment.get("fragment")
             ]
             snippet = "\n".join(part for part in fragments if part)
@@ -120,8 +126,8 @@ class CollectorClient:
                 "\n".join(
                     [
                         f"repository: {repository}",
-                        f"path: {path}",
-                        f"url: {html_url}",
+                        f"path: {path if isinstance(path, str) else str(path)}",
+                        f"url: {html_url if isinstance(html_url, str) else str(html_url)}",
                         f"snippet:\n{snippet}" if snippet else "snippet:",
                     ]
                 ).strip()
