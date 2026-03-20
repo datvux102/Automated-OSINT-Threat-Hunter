@@ -78,6 +78,22 @@ Example payload:
 
 To collect candidate matches from GitHub code search in code, use `CollectorClient.collect("github", "...")`. The collector is currently limited to GitHub and formats the top few matches into a plain-text bundle for downstream analysis.
 
+## CLI Usage
+
+Run the end-to-end pipeline directly:
+
+```powershell
+python -m cybersentinel.cli --source github --query "acme password"
+```
+
+Run analysis against direct text without calling the collector:
+
+```powershell
+python -m cybersentinel.cli --source github --query "acme leak" --raw-text "BEGIN RSA PRIVATE KEY"
+```
+
+If installed with `pip install -e .`, the console command `cybersentinel` is also available.
+
 ## Bedrock Configuration
 
 Set these environment variables to enable live model classification:
@@ -121,4 +137,4 @@ The collector uses GitHub code search and currently keeps only a small number of
 
 - harden the Bedrock response parsing and model-specific request handling
 - add pagination, rate-limit handling, and source-specific normalization to the collector
-- add deployment automation for AWS environments
+- add deployment automation and scheduled execution for AWS environments
