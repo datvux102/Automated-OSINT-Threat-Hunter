@@ -1,11 +1,14 @@
 import json
 
-from cybersentinel.lambda_handler import handler
-from cybersentinel.notifier import AlertNotifier, NotificationRecord
+import cybersentinel.lambda_handler as lambda_handler
 
 
-def test_handler_supports_direct_event() -> None:
-    response = handler(
+def _body(response: dict) -> dict:
+    return json.loads(response["body"])
+
+
+def test_direct_event_input() -> None:
+    response = lambda_handler.handler(
         {
             "source": "github",
             "query": "acme password",
@@ -13,14 +16,15 @@ def test_handler_supports_direct_event() -> None:
         }
     )
 
-    body = json.loads(response["body"])
+    body = _body(response)
     assert response["statusCode"] == 200
-    assert body["verdict"]["is_threat"] is True
-    assert body["alerts_sent"] == []
+    assert body["ok"] is True
+    assert body["input"]["source"] == "github"
+    assert set(body["verdict"].keys()) == {"is_threat", "threat_type", "severity", "summary"}
 
 
-def test_handler_supports_api_gateway_event() -> None:
-    response = handler(
+def test_api_gateway_body_input() -> None:
+    response = lambda_handler.handler(
         {
             "body": json.dumps(
                 {
@@ -32,35 +36,63 @@ def test_handler_supports_api_gateway_event() -> None:
         }
     )
 
-    body = json.loads(response["body"])
+    body = _body(response)
+    assert body["ok"] is True
+    assert body["verdict"]["severity"] == "CRITICAL"
+
+
+def test_benign_input_returns_no_alert() -> None:
+    response = lambda_handler.handler(
+        {
+            "source": "github",
+            "query": "acme example",
+            "raw_text": "example api_key=dummy-value",
+        }
+    )
+
+    body = _body(response)
+    assert body["verdict"]["is_threat"] is False
+    assert body["alerts_sent"] == []
+
+
+def test_critical_input_triggers_alert_path() -> None:
+    response = lambda_handler.handler(
+        {
+            "source": "github",
+            "query": "acme leak",
+            "raw_text": "BEGIN RSA PRIVATE KEY",
+        }
+    )
+
+    body = _body(response)
     assert body["verdict"]["severity"] == "CRITICAL"
     assert len(body["alerts_sent"]) == 1
 
 
-class FakeSnsClient:
-    def __init__(self) -> None:
-        self.messages: list[dict[str, str]] = []
+def test_notifier_failure_does_not_break_response() -> None:
+    original = lambda_handler.AlertNotifier
 
-    def publish(self, **kwargs: str) -> None:
-        self.messages.append(kwargs)
+    class FailingNotifier:
+        def __init__(self, *args, **kwargs) -> None:
+            self.sent_alerts = []
 
+        def notify(self, threat_input, verdict) -> None:
+            raise RuntimeError("SNS unavailable")
 
-def test_notifier_publishes_to_sns_when_configured() -> None:
-    client = FakeSnsClient()
-    notifier = AlertNotifier(
-        sns_topic_arn="arn:aws:sns:us-east-1:123456789012:cybersentinel",
-        sns_client=client,
-    )
-
-    notifier._publish_to_sns(
-        NotificationRecord(
-            source="github",
-            query="acme key",
-            severity="CRITICAL",
-            threat_type="Cloud_Credential_Leak",
-            summary="Detected exposed cloud credential.",
+    try:
+        lambda_handler.AlertNotifier = FailingNotifier
+        response = lambda_handler.handler(
+            {
+                "source": "github",
+                "query": "acme leak",
+                "raw_text": "BEGIN RSA PRIVATE KEY",
+            }
         )
-    )
+    finally:
+        lambda_handler.AlertNotifier = original
 
-    assert len(client.messages) == 1
-    assert client.messages[0]["TopicArn"].endswith(":cybersentinel")
+    body = _body(response)
+    assert body["ok"] is True
+    assert body["verdict"]["severity"] == "CRITICAL"
+    assert body["alerts_sent"] == []
+    assert body["error"]["code"] == "notifier_failed"

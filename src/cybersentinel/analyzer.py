@@ -240,23 +240,17 @@ class ThreatAnalyzer:
             return None
 
         response_text = "\n".join(text_fragments).strip()
-        json_text = ThreatAnalyzer._extract_json_object(response_text)
-        if json_text is None:
-            return None
+        for candidate in ThreatAnalyzer._iter_json_object_candidates(response_text):
+            verdict_dict = ThreatAnalyzer._extract_verdict_dict(candidate)
+            if verdict_dict is None:
+                continue
+            try:
+                normalized = ThreatAnalyzer._normalize_bedrock_verdict_dict(verdict_dict)
+            except ValueError:
+                continue
+            return ThreatVerdict(**normalized)
 
-        try:
-            data = json.loads(json_text)
-        except json.JSONDecodeError:
-            return None
-
-        if not isinstance(data, dict):
-            return None
-
-        try:
-            normalized = ThreatAnalyzer._normalize_bedrock_verdict_dict(data)
-        except ValueError:
-            return None
-        return ThreatVerdict(**normalized)
+        return None
 
     @staticmethod
     def _extract_bedrock_text_fragments(payload: dict[str, Any]) -> list[str]:
@@ -278,25 +272,78 @@ class ThreatAnalyzer:
         return []
 
     @staticmethod
-    def _extract_json_object(text: str) -> str | None:
+    def _iter_json_object_candidates(text: str) -> list[dict[str, Any]]:
+        # Accept common Bedrock shapes:
+        # - bare JSON object
+        # - fenced ```json ... ```
+        # - extra prose before/after JSON
+        candidates: list[dict[str, Any]] = []
+        for extracted in ThreatAnalyzer._extract_possible_json_objects(text):
+            try:
+                parsed = json.loads(extracted)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(parsed, dict):
+                candidates.append(parsed)
+        return candidates
+
+    @staticmethod
+    def _extract_possible_json_objects(text: str) -> list[str]:
         stripped = text.strip()
-        if stripped.startswith("```"):
+        extracted: list[str] = []
+
+        # If the entire payload is fenced, strip the fences first.
+        if stripped.startswith("```") and stripped.endswith("```"):
             lines = stripped.splitlines()
             if len(lines) >= 3 and lines[0].startswith("```") and lines[-1].startswith("```"):
-                stripped = "\n".join(lines[1:-1]).strip()
-                if stripped.lower().startswith("json"):
-                    stripped = stripped[4:].strip()
+                inner = "\n".join(lines[1:-1]).strip()
+                if inner.lower().startswith("json"):
+                    inner = inner[4:].strip()
+                stripped = inner
 
-        json_start = stripped.find("{")
-        json_end = stripped.rfind("}")
-        if json_start == -1 or json_end == -1 or json_end < json_start:
-            return None
+        # Scan for balanced JSON objects; collect a few to avoid pathological cases.
+        in_string = False
+        escape = False
+        depth = 0
+        start_index: int | None = None
 
-        prefix = stripped[:json_start].strip()
-        suffix = stripped[json_end + 1 :].strip()
-        if prefix or suffix:
-            return None
-        return stripped[json_start : json_end + 1]
+        for index, char in enumerate(stripped):
+            if escape:
+                escape = False
+                continue
+            if char == "\\":
+                escape = True
+                continue
+            if char == '"':
+                in_string = not in_string
+                continue
+            if in_string:
+                continue
+
+            if char == "{":
+                if depth == 0:
+                    start_index = index
+                depth += 1
+            elif char == "}":
+                if depth == 0:
+                    continue
+                depth -= 1
+                if depth == 0 and start_index is not None:
+                    extracted.append(stripped[start_index : index + 1])
+                    start_index = None
+                    if len(extracted) >= 3:
+                        break
+
+        return extracted
+
+    @staticmethod
+    def _extract_verdict_dict(data: dict[str, Any]) -> dict[str, Any] | None:
+        if REQUIRED_BEDROCK_KEYS.issubset(data.keys()):
+            return data
+        verdict = data.get("verdict")
+        if isinstance(verdict, dict) and REQUIRED_BEDROCK_KEYS.issubset(verdict.keys()):
+            return verdict
+        return None
 
     @staticmethod
     def _coerce_bool(value: Any) -> bool:
@@ -312,8 +359,8 @@ class ThreatAnalyzer:
 
     @staticmethod
     def _normalize_bedrock_verdict_dict(data: dict[str, Any]) -> dict[str, Any]:
-        if set(data) != REQUIRED_BEDROCK_KEYS:
-            raise ValueError("Unexpected Bedrock verdict keys.")
+        if not REQUIRED_BEDROCK_KEYS.issubset(data.keys()):
+            raise ValueError("Missing required Bedrock verdict keys.")
 
         threat_type = data["threat_type"]
         summary = data["summary"]
@@ -326,7 +373,7 @@ class ThreatAnalyzer:
         if not isinstance(severity, str):
             raise ValueError("Invalid severity.")
 
-        normalized_severity = severity.strip().upper()
+        normalized_severity = ThreatAnalyzer._normalize_severity(severity)
         if normalized_severity not in VALID_SEVERITIES:
             raise ValueError("Invalid severity.")
 
@@ -336,3 +383,19 @@ class ThreatAnalyzer:
             "severity": normalized_severity,
             "summary": summary.strip(),
         }
+
+    @staticmethod
+    def _normalize_severity(value: str) -> str:
+        normalized = value.strip().upper()
+        if normalized in VALID_SEVERITIES:
+            return normalized
+        # Common informal variants from models.
+        if "CRIT" in normalized:
+            return "CRITICAL"
+        if "HIGH" in normalized:
+            return "HIGH"
+        if "MED" in normalized:
+            return "MEDIUM"
+        if "LOW" in normalized:
+            return "LOW"
+        return normalized
