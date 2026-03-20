@@ -17,4 +17,6 @@ Resources:
           CYBERSENTINEL_SYSTEM_PROMPT_PATH: prompts/system_prompt.txt
           CYBERSENTINEL_BEDROCK_MODEL_ID: ""
           CYBERSENTINEL_SNS_TOPIC_ARN: ""
+          CYBERSENTINEL_GITHUB_API_URL: https://api.github.com
+          CYBERSENTINEL_GITHUB_API_VERSION: 2022-11-28
           AWS_REGION: us-east-1

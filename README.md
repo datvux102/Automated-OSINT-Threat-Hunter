@@ -13,6 +13,7 @@ This repository is an MVP backend scaffold. It includes:
 - a Lambda-style entry point
 - heuristic classification with optional Amazon Bedrock inference
 - in-memory alert recording with optional Amazon SNS publishing
+- GitHub code search collection for one approved OSINT source
 - local tests that do not require AWS credentials
 
 ## Architecture
@@ -75,6 +76,8 @@ Example payload:
 }
 ```
 
+To collect candidate matches from GitHub code search in code, use `CollectorClient.collect("github", "...")`. The collector is currently limited to GitHub and formats the top few matches into a plain-text bundle for downstream analysis.
+
 ## Bedrock Configuration
 
 Set these environment variables to enable live model classification:
@@ -97,9 +100,25 @@ $env:CYBERSENTINEL_ALERT_THRESHOLD="CRITICAL"
 
 If SNS is unavailable or `boto3` is missing, alerts are still returned in the handler response for local verification.
 
+## GitHub Collector Configuration
+
+For higher rate limits and private access control, set a token before using the collector:
+
+```powershell
+$env:GITHUB_TOKEN="ghp_your_token_here"
+```
+
+Optional overrides:
+
+```powershell
+$env:CYBERSENTINEL_GITHUB_API_URL="https://api.github.com"
+$env:CYBERSENTINEL_GITHUB_API_VERSION="2022-11-28"
+```
+
+The collector uses GitHub code search and currently keeps only a small number of top matches for downstream classification.
+
 ## Next Steps
 
 - harden the Bedrock response parsing and model-specific request handling
-- implement a real collector client for approved OSINT sources
-- replace the collector stub with one approved OSINT source integration
+- add pagination, rate-limit handling, and source-specific normalization to the collector
 - add deployment automation for AWS environments
