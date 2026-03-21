@@ -77,6 +77,66 @@ The Vite app proxies `/api/*` requests to `http://127.0.0.1:8000`, and the backe
 
 - `GET /api/health`
 - `POST /api/analyze`
+- `POST /api/collect`
+- `GET /api/system-status`
+
+Frontend routes:
+
+- `/` - Triage Dashboard
+- `/collector` - Hunt & Collect
+- `/alerts` - Alert Center
+- `/settings` - System / Integration Health
+
+Notes:
+
+- Alert Center is browser-local only and uses local storage for demo persistence
+- Collector results are real backend responses from the Python GitHub collector bridge
+- `Send to Analyze` prefills the dashboard with collected data but does not auto-run analysis
+
+## Backend Bridge Contracts
+
+Health:
+
+```json
+{
+  "ok": true,
+  "message": "Backend connected"
+}
+```
+
+Collect:
+
+```json
+POST /api/collect
+{
+  "source": "github",
+  "query": "acme password"
+}
+```
+
+```json
+{
+  "ok": true,
+  "record": {
+    "source": "github",
+    "query": "acme password",
+    "raw_text": "..."
+  }
+}
+```
+
+System status:
+
+```json
+{
+  "ok": true,
+  "backend_ok": true,
+  "collector_enabled": true,
+  "github_token_configured": false,
+  "bedrock_enabled": false,
+  "sns_enabled": false
+}
+```
 
 ## Bedrock Configuration
 

@@ -1,4 +1,6 @@
 import type { AnalyzePayload } from "../types/threat";
+import { CopyButton } from "./CopyButton";
+import { copyText } from "../utils/clipboard";
 
 interface AnalyzeFormProps {
   form: AnalyzePayload;
@@ -102,6 +104,10 @@ export function AnalyzeForm({
           >
             Clear
           </button>
+          <CopyButton
+            onCopy={() => copyText(JSON.stringify(form, null, 2))}
+            label="Copy payload"
+          />
         </div>
       </div>
     </section>
