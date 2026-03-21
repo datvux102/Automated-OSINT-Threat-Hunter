@@ -6,6 +6,8 @@ import cybersentinel.lambda_handler as lambda_handler
 def _body(response: dict) -> dict:
     return json.loads(response["body"])
 
+VALID_SEVERITIES = {"LOW", "MEDIUM", "HIGH", "CRITICAL"}
+
 
 def test_direct_event_input() -> None:
     response = lambda_handler.handler(
@@ -21,6 +23,7 @@ def test_direct_event_input() -> None:
     assert body["ok"] is True
     assert body["input"]["source"] == "github"
     assert set(body["verdict"].keys()) == {"is_threat", "threat_type", "severity", "summary"}
+    assert body["verdict"]["severity"] in VALID_SEVERITIES
 
 
 def test_api_gateway_body_input() -> None:
@@ -39,6 +42,7 @@ def test_api_gateway_body_input() -> None:
     body = _body(response)
     assert body["ok"] is True
     assert body["verdict"]["severity"] == "CRITICAL"
+    assert body["verdict"]["severity"] in VALID_SEVERITIES
 
 
 def test_benign_input_returns_no_alert() -> None:
@@ -52,6 +56,7 @@ def test_benign_input_returns_no_alert() -> None:
 
     body = _body(response)
     assert body["verdict"]["is_threat"] is False
+    assert body["verdict"]["severity"] in VALID_SEVERITIES
     assert body["alerts_sent"] == []
 
 
@@ -66,6 +71,7 @@ def test_critical_input_triggers_alert_path() -> None:
 
     body = _body(response)
     assert body["verdict"]["severity"] == "CRITICAL"
+    assert body["verdict"]["severity"] in VALID_SEVERITIES
     assert len(body["alerts_sent"]) == 1
 
 
@@ -94,6 +100,7 @@ def test_notifier_failure_does_not_break_response() -> None:
     body = _body(response)
     assert body["ok"] is True
     assert body["verdict"]["severity"] == "CRITICAL"
+    assert body["verdict"]["severity"] in VALID_SEVERITIES
     assert body["alerts_sent"] == []
     assert body["error"]["code"] == "notifier_failed"
 
@@ -139,3 +146,12 @@ def test_invalid_bedrock_output_falls_back_to_heuristic() -> None:
     assert body["verdict"]["is_threat"] is True
     assert body["verdict"]["threat_type"] == "Credential_Leak"
     assert body["verdict"]["severity"] == "HIGH"
+    assert body["verdict"]["severity"] in VALID_SEVERITIES
+
+
+def test_invalid_api_gateway_body_returns_stable_schema() -> None:
+    response = lambda_handler.handler({"body": "not-json"})
+    body = _body(response)
+    assert body["ok"] is False
+    assert set(body["verdict"].keys()) == {"is_threat", "threat_type", "severity", "summary"}
+    assert body["verdict"]["severity"] in VALID_SEVERITIES

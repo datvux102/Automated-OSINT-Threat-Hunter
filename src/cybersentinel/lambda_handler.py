@@ -33,6 +33,27 @@ def _default_verdict() -> dict[str, str | bool]:
         "summary": "Request could not be processed.",
     }
 
+
+VALID_SEVERITIES = {"LOW", "MEDIUM", "HIGH", "CRITICAL"}
+
+
+def _normalize_severity(value: Any) -> str:
+    if value is None:
+        return "LOW"
+    normalized = str(value).strip().upper()
+    if normalized in VALID_SEVERITIES:
+        return normalized
+    if "CRIT" in normalized:
+        return "CRITICAL"
+    if "HIGH" in normalized:
+        return "HIGH"
+    if "MED" in normalized:
+        return "MEDIUM"
+    if "LOW" in normalized:
+        return "LOW"
+    return "LOW"
+
+
 def _verdict_to_dict(verdict: ThreatVerdict | None) -> dict[str, str | bool]:
     if verdict is None:
         return _default_verdict()
@@ -41,7 +62,7 @@ def _verdict_to_dict(verdict: ThreatVerdict | None) -> dict[str, str | bool]:
     return {
         "is_threat": bool(data.get("is_threat", False)),
         "threat_type": str(data.get("threat_type", "Unknown")),
-        "severity": str(data.get("severity", "LOW")),
+        "severity": _normalize_severity(data.get("severity", "LOW")),
         "summary": str(data.get("summary", "")),
     }
 
@@ -77,9 +98,12 @@ def _parse_event_payload(event: dict) -> tuple[dict[str, Any] | None, dict[str, 
             return None, {"code": "invalid_body", "message": "Base64 body could not be decoded."}
 
     try:
-        return json.loads(raw_body), None
+        payload = json.loads(raw_body)
     except json.JSONDecodeError:
         return None, {"code": "invalid_json", "message": "API Gateway body is not valid JSON."}
+    if not isinstance(payload, dict):
+        return None, {"code": "invalid_payload", "message": "API Gateway body must be a JSON object."}
+    return payload, None
 
 
 def _parse_threat_input(payload: dict[str, Any]) -> ThreatInput:
@@ -144,9 +168,10 @@ def handler(event: dict, context: object | None = None) -> dict:
         )
 
     alerts_sent: list[dict[str, str]] = []
+    normalized_severity = _normalize_severity(verdict.severity)
     if verdict.is_threat and (
-        verdict.severity == "CRITICAL"
-        or should_alert(verdict.severity, settings.alert_threshold)
+        normalized_severity == "CRITICAL"
+        or should_alert(normalized_severity, settings.alert_threshold)
     ):
         try:
             notifier.notify(threat_input, verdict)
@@ -167,7 +192,7 @@ def handler(event: dict, context: object | None = None) -> dict:
         source=threat_input.source,
         query=threat_input.query,
         is_threat=bool(verdict.is_threat),
-        severity=str(verdict.severity),
+        severity=normalized_severity,
         alerts_sent=len(alerts_sent),
     )
 

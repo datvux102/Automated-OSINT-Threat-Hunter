@@ -4,6 +4,8 @@ from pathlib import Path
 from cybersentinel.analyzer import ThreatAnalyzer
 from cybersentinel.models import ThreatInput
 
+VALID_SEVERITIES = {"LOW", "MEDIUM", "HIGH", "CRITICAL"}
+
 
 def test_benign_sample_input() -> None:
     verdict = ThreatAnalyzer().analyze(
@@ -11,6 +13,7 @@ def test_benign_sample_input() -> None:
     )
     assert verdict.is_threat is False
     assert verdict.threat_type == "Benign_Example"
+    assert verdict.severity in VALID_SEVERITIES
 
 
 def test_critical_sample_input() -> None:
@@ -19,6 +22,7 @@ def test_critical_sample_input() -> None:
     )
     assert verdict.is_threat is True
     assert verdict.severity == "CRITICAL"
+    assert verdict.severity in VALID_SEVERITIES
 
 
 class FakeBedrockBody:
@@ -76,6 +80,7 @@ def test_valid_bedrock_json() -> None:
     assert verdict.is_threat is True
     assert verdict.threat_type == "API_Key_Leak"
     assert verdict.severity == "CRITICAL"
+    assert verdict.severity in VALID_SEVERITIES
 
 
 class FakeBedrockInvalidJsonClient:
@@ -113,6 +118,7 @@ def test_invalid_bedrock_json_falls_back_to_heuristic() -> None:
     assert verdict.is_threat is True
     assert verdict.threat_type == "Credential_Leak"
     assert verdict.severity == "HIGH"
+    assert verdict.severity in VALID_SEVERITIES
 
 
 class FakeBedrockMissingKeysClient:
@@ -156,3 +162,4 @@ def test_missing_keys_in_bedrock_output_falls_back_to_heuristic() -> None:
     assert verdict.is_threat is True
     assert verdict.threat_type == "Credential_Leak"
     assert verdict.severity == "HIGH"
+    assert verdict.severity in VALID_SEVERITIES
