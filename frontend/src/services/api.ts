@@ -7,10 +7,12 @@ import type {
   SystemStatusResponse,
 } from "../types/threat";
 
-const ANALYZE_ENDPOINT = "/api/analyze";
-const HEALTH_ENDPOINT = "/api/health";
-const COLLECT_ENDPOINT = "/api/collect";
-const SYSTEM_STATUS_ENDPOINT = "/api/system-status";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
+const normalizedBase = API_BASE_URL.replace(/\/+$/, "");
+const ANALYZE_ENDPOINT = `${normalizedBase}/api/analyze`;
+const HEALTH_ENDPOINT = `${normalizedBase}/api/health`;
+const COLLECT_ENDPOINT = `${normalizedBase}/api/collect`;
+const SYSTEM_STATUS_ENDPOINT = `${normalizedBase}/api/system-status`;
 const VALID_SEVERITIES: Severity[] = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
 
 function isRecord(value: unknown): value is Record<string, unknown> {

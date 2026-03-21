@@ -4,12 +4,15 @@ __pycache__/
 dist/
 build/
 node_modules/
+.npm-cache/
 *.tsbuildinfo
 *.pyc
 *.pyo
 *.pyd
 .coverage
 coverage.xml
+*.log
 env.json
 ~$*.xlsx
 *.m4a
+src/*.egg-info/

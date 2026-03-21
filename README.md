@@ -138,6 +138,20 @@ System status:
 }
 ```
 
+## Deploy (Public Web URL)
+
+Easiest path is deploying the included `Dockerfile` (builds the Vite UI + serves it from the same Python server):
+
+- Entry point: `python -m cybersentinel.web_server`
+- Health check: `/api/health`
+- Port: from `$PORT` (defaults to `8000`)
+
+Render (recommended):
+
+1. Push this repo to GitHub.
+2. In Render: **New** → **Blueprint** → select the repo (it will detect `render.yaml`).
+3. Deploy and open the generated URL.
+
 ## Bedrock Configuration
 
 ## Production-Like E2E Check

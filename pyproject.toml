@@ -7,7 +7,7 @@ name = "cybersentinel-ai"
 version = "0.1.0"
 description = "MVP scaffold for an automated OSINT threat hunter"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 dependencies = []
 
 [project.scripts]
