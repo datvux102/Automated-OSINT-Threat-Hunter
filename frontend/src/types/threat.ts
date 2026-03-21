@@ -10,7 +10,7 @@ export interface ThreatVerdict {
 export interface AlertRecord {
   source: string;
   query: string;
-  severity: string;
+  severity: Severity;
   threat_type: string;
   summary: string;
 }
@@ -30,6 +30,8 @@ export interface AnalyzePayload {
   raw_text: string;
 }
 
+export interface AnalyzeDraft extends AnalyzePayload {}
+
 export interface HistoryItem {
   id: string;
   time: string;
@@ -41,4 +43,18 @@ export interface HistoryItem {
 export interface HealthResponse {
   ok: boolean;
   message: string;
+}
+
+export interface ArchivedAlert extends AlertRecord {
+  id: string;
+  timestamp: string;
+}
+
+export interface SystemStatusResponse {
+  ok: boolean;
+  backend_ok: boolean;
+  collector_enabled: boolean;
+  github_token_configured: boolean;
+  bedrock_enabled: boolean;
+  sns_enabled: boolean;
 }

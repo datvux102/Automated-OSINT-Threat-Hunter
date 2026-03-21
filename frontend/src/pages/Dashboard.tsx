@@ -1,31 +1,34 @@
 import { useEffect, useMemo, useState } from "react";
 import { AnalyzeForm } from "../components/AnalyzeForm";
 import { AlertsPanel } from "../components/AlertsPanel";
+import { CopyButton } from "../components/CopyButton";
 import { HistoryTable } from "../components/HistoryTable";
 import { JsonInspector } from "../components/JsonInspector";
 import { VerdictCard } from "../components/VerdictCard";
+import { AppShell } from "../layouts/AppShell";
 import { analyzeThreat, checkHealth } from "../services/api";
 import type {
-  AnalyzePayload,
+  AnalyzeDraft,
   AnalyzeResponse,
   HealthResponse,
   HistoryItem,
 } from "../types/threat";
+import { copyText } from "../utils/clipboard";
 import { detectHeuristicSignals } from "../utils/heuristicSignals";
 
-const maliciousSample: AnalyzePayload = {
+const maliciousSample: AnalyzeDraft = {
   source: "github",
   query: "acme password",
   raw_text: "AWS_SECRET_ACCESS_KEY=abcd1234example",
 };
 
-const benignSample: AnalyzePayload = {
+const benignSample: AnalyzeDraft = {
   source: "github",
   query: "docs example",
   raw_text: "Example only: api_key='your_api_key_here'",
 };
 
-const emptyForm: AnalyzePayload = {
+const emptyForm: AnalyzeDraft = {
   source: "github",
   query: "",
   raw_text: "",
@@ -39,8 +42,14 @@ function formatTime(date: Date): string {
   }).format(date);
 }
 
-export function Dashboard() {
-  const [form, setForm] = useState<AnalyzePayload>(maliciousSample);
+interface DashboardProps {
+  draft: AnalyzeDraft;
+  onDraftChange: (draft: AnalyzeDraft) => void;
+  onAnalyzeSuccess: (response: AnalyzeResponse) => void;
+}
+
+export function Dashboard({ draft, onDraftChange, onAnalyzeSuccess }: DashboardProps) {
+  const [form, setForm] = useState<AnalyzeDraft>(draft);
   const [response, setResponse] = useState<AnalyzeResponse | null>(null);
   const [rawResponse, setRawResponse] = useState<unknown>(null);
   const [analyzedRawText, setAnalyzedRawText] = useState<string | null>(null);
@@ -49,6 +58,10 @@ export function Dashboard() {
   const [healthError, setHealthError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setForm(draft);
+  }, [draft]);
 
   const canSubmit = form.raw_text.trim().length > 0;
   const heuristicSignals = useMemo(() => {
@@ -82,12 +95,18 @@ export function Dashboard() {
     };
   }, []);
 
-  const updateField = (field: keyof AnalyzePayload, value: string) => {
-    setForm((current) => ({ ...current, [field]: value }));
+  const updateField = (field: keyof AnalyzeDraft, value: string) => {
+    setForm((current) => {
+      const next = { ...current, [field]: value };
+      onDraftChange(next);
+      return next;
+    });
   };
 
   const loadSample = (type: "malicious" | "benign") => {
-    setForm(type === "malicious" ? maliciousSample : benignSample);
+    const sample = type === "malicious" ? maliciousSample : benignSample;
+    setForm(sample);
+    onDraftChange(sample);
     setError(null);
     setResponse(null);
     setRawResponse(null);
@@ -96,6 +115,7 @@ export function Dashboard() {
 
   const clearForm = () => {
     setForm(emptyForm);
+    onDraftChange(emptyForm);
     setError(null);
     setResponse(null);
     setRawResponse(null);
@@ -117,6 +137,7 @@ export function Dashboard() {
       const result = await analyzeThreat(form);
       setResponse(result.normalized);
       setRawResponse(result.raw);
+      onAnalyzeSuccess(result.normalized);
       setHistory((current) => [
         {
           id: `${Date.now()}-${current.length}`,
@@ -141,73 +162,66 @@ export function Dashboard() {
     : "bg-amber-100 text-amber-800 ring-amber-200";
 
   return (
-    <main className="relative overflow-hidden">
-      <div className="absolute inset-0 -z-10 bg-grid bg-[size:40px_40px] opacity-60" />
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <header className="rounded-[32px] border border-white/70 bg-ink px-6 py-8 text-white shadow-glow">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-2xl">
-              <p className="text-xs font-semibold uppercase tracking-[0.32em] text-sky-200">
-                CyberSentinel Console
-              </p>
-              <h1 className="mt-3 text-4xl font-bold sm:text-5xl">
-                AI-assisted OSINT leak triage and alerting
-              </h1>
-              <p className="mt-4 max-w-xl text-sm leading-7 text-slate-300 sm:text-base">
-                Paste suspicious public content, classify it with the current Python backend,
-                and show a clean verdict, alert trail, and session history for demos.
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              <div
-                className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold ring-1 ${statusPillClassName}`}
-              >
-                <span
-                  className={`h-2.5 w-2.5 rounded-full ${
-                    health?.ok ? "bg-emerald-500" : "bg-amber-500"
-                  }`}
-                />
-                {health?.message ?? "Backend status unknown"}
-              </div>
-              {healthError ? (
-                <p className="max-w-sm text-sm text-amber-200">{healthError}</p>
-              ) : null}
-            </div>
+    <AppShell
+      eyebrow="CyberSentinel Console"
+      title="AI-assisted OSINT leak triage and alerting"
+      description="Paste suspicious public content, classify it with the current Python backend, and inspect the verdict, alert trail, and session history from a triage-first dashboard."
+    >
+      <section className="rounded-[28px] border border-white/70 bg-ink p-5 text-white shadow-glow">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div
+            className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold ring-1 ${statusPillClassName}`}
+          >
+            <span
+              className={`h-2.5 w-2.5 rounded-full ${
+                health?.ok ? "bg-emerald-500" : "bg-amber-500"
+              }`}
+            />
+            {health?.message ?? "Backend status unknown"}
           </div>
-        </header>
-
-        <section className="mt-6 grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-          <AnalyzeForm
-            form={form}
-            loading={loading}
-            canSubmit={canSubmit}
-            onChange={updateField}
-            onSubmit={submit}
-            onLoadSample={loadSample}
-            onClear={clearForm}
+          <CopyButton
+            onCopy={() => copyText(JSON.stringify(form, null, 2))}
+            label="Copy analyze payload"
+            className="border-white/20 bg-white/10 text-white hover:bg-white/20"
           />
-          <VerdictCard
-            response={response}
-            loading={loading}
-            error={error}
-            heuristicSignals={heuristicSignals}
-          />
-        </section>
+        </div>
+        {healthError ? <p className="mt-3 max-w-sm text-sm text-amber-200">{healthError}</p> : null}
+      </section>
 
-        <section className="mt-6 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-          <AlertsPanel
-            alerts={response?.alerts_sent ?? []}
-            loading={loading}
-            error={error}
-          />
-          <JsonInspector payload={rawResponse} loading={loading} error={error} />
-        </section>
+      <section className="mt-6 grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+        <AnalyzeForm
+          form={form}
+          loading={loading}
+          canSubmit={canSubmit}
+          onChange={updateField}
+          onSubmit={submit}
+          onLoadSample={loadSample}
+          onClear={clearForm}
+        />
+        <VerdictCard
+          response={response}
+          loading={loading}
+          error={error}
+          heuristicSignals={heuristicSignals}
+          inputText={analyzedRawText}
+        />
+      </section>
 
-        <section className="mt-6">
-          <HistoryTable items={history} />
-        </section>
-      </div>
-    </main>
+      <section className="mt-6 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+        <AlertsPanel alerts={response?.alerts_sent ?? []} loading={loading} error={error} />
+        <JsonInspector
+          payload={rawResponse}
+          loading={loading}
+          error={error}
+          onCopy={
+            rawResponse ? () => copyText(JSON.stringify(rawResponse, null, 2)) : undefined
+          }
+        />
+      </section>
+
+      <section className="mt-6">
+        <HistoryTable items={history} />
+      </section>
+    </AppShell>
   );
 }

@@ -1,12 +1,14 @@
 import { SeverityBadge } from "./SeverityBadge";
 import type { AnalyzeResponse } from "../types/threat";
 import type { HeuristicSignals } from "../utils/heuristicSignals";
+import { renderHighlightedInputSnippets } from "../utils/highlightText";
 
 interface VerdictCardProps {
   response: AnalyzeResponse | null;
   loading: boolean;
   error: string | null;
   heuristicSignals?: HeuristicSignals | null;
+  inputText?: string | null;
 }
 
 export function VerdictCard({
@@ -14,6 +16,7 @@ export function VerdictCard({
   loading,
   error,
   heuristicSignals,
+  inputText,
 }: VerdictCardProps) {
   if (loading) {
     return (
@@ -57,6 +60,12 @@ export function VerdictCard({
 
   const { verdict, alerts_sent: alertsSent } = response;
   const isThreat = verdict.is_threat;
+  const lowSignalsMatched = Boolean(heuristicSignals?.lowSignals?.length);
+  const highSignalsToShow =
+    heuristicSignals && !lowSignalsMatched ? heuristicSignals.highSignals : [];
+  const highlightTerms = lowSignalsMatched
+    ? heuristicSignals?.lowSignals ?? []
+    : highSignalsToShow.map((s) => s.pattern);
 
   return (
     <section
@@ -117,15 +126,15 @@ export function VerdictCard({
                 Local keyword triage; Bedrock can override the final verdict.
               </p>
             </div>
-            {heuristicSignals.highSignals.length > 0 ? (
+            {highSignalsToShow.length > 0 ? (
               <div className="text-xs text-slate-600">
-                {heuristicSignals.highSignals.length} high indicator
-                {heuristicSignals.highSignals.length > 1 ? "s" : ""}
+                {highSignalsToShow.length} high indicator
+                {highSignalsToShow.length > 1 ? "s" : ""}
               </div>
             ) : null}
           </div>
 
-          {heuristicSignals.lowSignals.length > 0 ? (
+          {lowSignalsMatched ? (
             <div className="mt-4 rounded-3xl bg-amber-50 p-4 ring-1 ring-amber-200">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-800">
                 Low-signal terms matched
@@ -140,13 +149,20 @@ export function VerdictCard({
                   </span>
                 ))}
               </div>
+
+              {heuristicSignals.highSignals.length > 0 ? (
+                <p className="mt-3 text-xs text-amber-900">
+                  High indicators are ignored by the low-signal filter (matches backend
+                  behavior).
+                </p>
+              ) : null}
             </div>
           ) : null}
 
-          {heuristicSignals.highSignals.length > 0 ? (
+          {highSignalsToShow.length > 0 ? (
             <div className="mt-4">
               <div className="flex flex-wrap gap-3">
-                {heuristicSignals.highSignals.map((signal) => (
+                {highSignalsToShow.map((signal) => (
                   <div
                     key={signal.pattern}
                     className="rounded-3xl bg-slate-50 p-4 ring-1 ring-slate-200"
@@ -164,10 +180,30 @@ export function VerdictCard({
                 ))}
               </div>
             </div>
-          ) : heuristicSignals.lowSignals.length === 0 ? (
+          ) : lowSignalsMatched ? null : (
             <div className="mt-4 rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
               No heuristic indicators matched.
             </div>
+          )}
+
+          {inputText ? (
+            <details className="mt-4 rounded-3xl bg-slate-950 p-4">
+              <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.18em] text-sky-200">
+                Highlighted input (heuristic)
+              </summary>
+              {renderHighlightedInputSnippets(
+                inputText,
+                highlightTerms,
+                lowSignalsMatched
+                  ? "rounded-sm bg-amber-200 text-amber-950 px-0.5"
+                  : "rounded-sm bg-rose-200 text-rose-950 px-0.5",
+                {
+                  contextChars: 80,
+                  maxSnippets: 4,
+                  maxSnippetChars: 180,
+                },
+              )}
+            </details>
           ) : null}
         </div>
       ) : null}

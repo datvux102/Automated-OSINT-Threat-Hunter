@@ -8,7 +8,7 @@ from pathlib import Path
 DEFAULT_PROMPT_PATH = Path("prompts/system_prompt.txt")
 
 
-@dataclass(slots=True)
+@dataclass
 class Settings:
     alert_threshold: str = "CRITICAL"
     system_prompt_path: Path = DEFAULT_PROMPT_PATH

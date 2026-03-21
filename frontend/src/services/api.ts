@@ -1,12 +1,18 @@
+import type { CollectPayload, CollectResponse } from "../types/collector";
 import type {
   AnalyzePayload,
   AnalyzeResponse,
   HealthResponse,
   Severity,
+  SystemStatusResponse,
 } from "../types/threat";
 
-const ANALYZE_ENDPOINT = "/api/analyze";
-const HEALTH_ENDPOINT = "/api/health";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
+const normalizedBase = API_BASE_URL.replace(/\/+$/, "");
+const ANALYZE_ENDPOINT = `${normalizedBase}/api/analyze`;
+const HEALTH_ENDPOINT = `${normalizedBase}/api/health`;
+const COLLECT_ENDPOINT = `${normalizedBase}/api/collect`;
+const SYSTEM_STATUS_ENDPOINT = `${normalizedBase}/api/system-status`;
 const VALID_SEVERITIES: Severity[] = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -79,14 +85,51 @@ function normalizeAnalyzeResponse(payload: unknown): AnalyzeResponse {
         throw new Error("Alert record is invalid.");
       }
 
+      const alertSeverity = String(alert.severity ?? "").toUpperCase() as Severity;
+      if (!VALID_SEVERITIES.includes(alertSeverity)) {
+        throw new Error("Alert record severity is invalid.");
+      }
+
       return {
         source: String(alert.source ?? ""),
         query: String(alert.query ?? ""),
-        severity: String(alert.severity ?? ""),
+        severity: alertSeverity,
         threat_type: String(alert.threat_type ?? ""),
         summary: String(alert.summary ?? ""),
       };
     }),
+  };
+}
+
+function normalizeCollectResponse(payload: unknown): CollectResponse {
+  const unwrapped = unwrapResponseShape(payload);
+  if (!isRecord(unwrapped) || !isRecord(unwrapped.record)) {
+    throw new Error("Collector response is missing the record payload.");
+  }
+
+  return {
+    ok: Boolean(unwrapped.ok),
+    record: {
+      source: String(unwrapped.record.source ?? ""),
+      query: String(unwrapped.record.query ?? ""),
+      raw_text: String(unwrapped.record.raw_text ?? ""),
+    },
+  };
+}
+
+function normalizeSystemStatus(payload: unknown): SystemStatusResponse {
+  const unwrapped = unwrapResponseShape(payload);
+  if (!isRecord(unwrapped)) {
+    throw new Error("System status response is invalid.");
+  }
+
+  return {
+    ok: Boolean(unwrapped.ok),
+    backend_ok: Boolean(unwrapped.backend_ok),
+    collector_enabled: Boolean(unwrapped.collector_enabled),
+    github_token_configured: Boolean(unwrapped.github_token_configured),
+    bedrock_enabled: Boolean(unwrapped.bedrock_enabled),
+    sns_enabled: Boolean(unwrapped.sns_enabled),
   };
 }
 
@@ -131,4 +174,23 @@ export async function analyzeThreat(
 
 export async function checkHealth(): Promise<HealthResponse> {
   return requestJson<HealthResponse>(HEALTH_ENDPOINT);
+}
+
+export async function collectThreatSource(
+  payload: CollectPayload,
+): Promise<CollectResponse> {
+  const raw = await requestJson<unknown>(COLLECT_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  return normalizeCollectResponse(raw);
+}
+
+export async function getSystemStatus(): Promise<SystemStatusResponse> {
+  const raw = await requestJson<unknown>(SYSTEM_STATUS_ENDPOINT);
+  return normalizeSystemStatus(raw);
 }

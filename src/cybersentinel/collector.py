@@ -10,7 +10,7 @@ from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 
-@dataclass(slots=True)
+@dataclass
 class CollectedRecord:
     source: str
     query: str
