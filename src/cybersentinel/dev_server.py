@@ -68,16 +68,8 @@ class CyberSentinelRequestHandler(BaseHTTPRequestHandler):
         except ValueError:
             return None, "Invalid Content-Length header."
 
-        body = self.rfile.read(content_length).decode("utf-8") if content_length else "{}"
-        try:
-            payload = json.loads(body)
-        except json.JSONDecodeError:
-            return None, "Request body must be valid JSON."
-
-        if not isinstance(payload, dict):
-            return None, "Request body must be a JSON object."
-
-        return payload, None
+        body = self.rfile.read(content_length) if content_length else b"{}"
+        return parse_json_body_bytes(body)
 
     def _send_cors_headers(self) -> None:
         self.send_header("Access-Control-Allow-Origin", "*")
@@ -114,6 +106,18 @@ def handle_collect_request(
         return HTTPStatus.BAD_GATEWAY, {"ok": False, "error": str(exc)}
 
     return HTTPStatus.OK, {"ok": True, "record": record.to_dict()}
+
+
+def parse_json_body_bytes(body: bytes) -> tuple[dict | None, str | None]:
+    try:
+        payload = json.loads(body.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return None, "Request body must be valid JSON."
+
+    if not isinstance(payload, dict):
+        return None, "Request body must be a JSON object."
+
+    return payload, None
 
 
 def build_system_status(settings: Settings) -> dict[str, bool]:

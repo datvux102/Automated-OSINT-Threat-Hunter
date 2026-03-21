@@ -3,5 +3,6 @@ services:
     name: cybersentinel-ai
     env: docker
     plan: free
+    dockerfilePath: ./Dockerfile
     autoDeploy: true
     healthCheckPath: /api/health

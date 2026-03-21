@@ -11,7 +11,7 @@ echo "==> Building frontend"
 npm -C frontend run build >/dev/null
 
 echo "==> Starting backend bridge on port ${BACKEND_PORT}"
-PYTHONPYCACHEPREFIX="$ROOT_DIR/.pycacheprefix" PYTHONPATH=src "$PYTHON_BIN" -m cybersentinel.dev_server >/tmp/cybersentinel-backend.log 2>&1 &
+PORT="$BACKEND_PORT" PYTHONPYCACHEPREFIX="$ROOT_DIR/.pycacheprefix" PYTHONPATH=src "$PYTHON_BIN" -m cybersentinel.web_server >/tmp/cybersentinel-backend.log 2>&1 &
 BACKEND_PID=$!
 
 cleanup() {
@@ -38,4 +38,3 @@ echo "==> Running API smoke tests"
 "$PYTHON_BIN" scripts/smoke_e2e.py "http://127.0.0.1:${BACKEND_PORT}"
 
 echo "==> Production-like E2E check completed"
-

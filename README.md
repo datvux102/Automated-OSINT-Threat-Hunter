@@ -202,3 +202,34 @@ $env:CYBERSENTINEL_ALERT_THRESHOLD="CRITICAL"
 ```
 
 If SNS or `boto3` is unavailable, alerts are still returned in the handler/CLI output for demo purposes.
+
+## Render Deployment
+
+This repository supports a single-service Render deployment path via:
+
+- `render.yaml`
+- `Dockerfile`
+- `python -m cybersentinel.web_server`
+
+Production path behavior:
+
+- serves built frontend assets from `frontend/dist`
+- exposes `GET /api/health`
+- exposes `POST /api/analyze`
+- exposes `POST /api/collect`
+- exposes `GET /api/system-status`
+- falls back to `index.html` for SPA routes like `/collector` and `/settings`
+
+Render compatibility notes:
+
+- the web server binds to `0.0.0.0`
+- it reads the runtime port from `PORT`
+- Render health checks should target `/api/health`
+
+Local deployment-path validation:
+
+```bash
+./scripts/run_prod_e2e.sh
+```
+
+This script now validates the real deployed server path (`cybersentinel.web_server`), not only the local dev bridge.
