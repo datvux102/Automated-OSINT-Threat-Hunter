@@ -80,6 +80,37 @@ The Vite app proxies `/api/*` requests to `http://127.0.0.1:8000`, and the backe
 
 ## Bedrock Configuration
 
+## Production-Like E2E Check
+
+Run a one-command smoke flow that validates backend API behavior and frontend build output:
+
+```bash
+./scripts/run_prod_e2e.sh
+```
+
+What it does:
+
+- builds frontend assets
+- starts backend bridge locally on `127.0.0.1:8000`
+- runs smoke checks for:
+  - `GET /api/health`
+  - `POST /api/analyze` (benign sample)
+  - `POST /api/analyze` (critical sample)
+
+You can override defaults:
+
+```bash
+PYTHON_BIN=python3 BACKEND_PORT=8000 ./scripts/run_prod_e2e.sh
+```
+
+## GitHub Token (Optional)
+
+For higher rate limits:
+
+```powershell
+$env:GITHUB_TOKEN="ghp_your_token_here"
+```
+
 ## Bedrock (Optional)
 
 ```powershell

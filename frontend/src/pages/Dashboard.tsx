@@ -192,6 +192,7 @@ export function Dashboard() {
             loading={loading}
             error={error}
             heuristicSignals={heuristicSignals}
+            inputText={analyzedRawText}
           />
         </section>
 

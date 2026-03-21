@@ -7,7 +7,7 @@ from typing import Any
 from cybersentinel.models import ThreatInput, ThreatVerdict
 
 
-@dataclass(slots=True)
+@dataclass
 class NotificationRecord:
     source: str
     query: str
